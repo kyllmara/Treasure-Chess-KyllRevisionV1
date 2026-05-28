@@ -43,9 +43,9 @@ const BASE_SEPOLIA_CONFIG = {
   chainId: 84532,
 };
 
-// Use Polygon Amoy testnet in development, Polygon mainnet in production
+// Always use Base mainnet (Base Sepolia for dev if needed)
 const IS_DEV = process.env.EXPO_PUBLIC_DEBUG_MODE === "true";
-const CHAIN_CONFIG = IS_DEV ? POLYGON_AMOY_CONFIG : POLYGON_MAINNET_CONFIG;
+const CHAIN_CONFIG = IS_DEV ? BASE_SEPOLIA_CONFIG : BASE_CHAIN_CONFIG;
 
 // ============================================================================
 // Magic Instance

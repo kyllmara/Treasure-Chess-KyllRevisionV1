@@ -38,8 +38,8 @@ const TCT_TO_USD = 0.04;
 // Use vault address from environment variable
 const VAULT_ADDRESS = process.env.EXPO_PUBLIC_VAULT_CONTRACT || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
 // Network configuration
-const NETWORK_NAME = "Polygon Amoy"; // For testnet, change to "Polygon" for mainnet
-const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
+const NETWORK_NAME = "Base";
+const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 function usdToTCT(usd: number): number {
   return usd / TCT_TO_USD;

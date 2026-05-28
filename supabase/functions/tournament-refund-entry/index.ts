@@ -18,10 +18,10 @@ import {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAULT_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY") || "";
-const POLYGON_RPC_URL =
-  Deno.env.get("POLYGON_RPC_URL") || "https://rpc-amoy.polygon.technology";
+const BASE_RPC_URL =
+  Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 const USDC_CONTRACT_ADDRESS =
-  Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
+  Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -171,7 +171,7 @@ Deno.serve(async (req: Request) => {
     let usdc: Contract | null = null;
 
     if (VAULT_PRIVATE_KEY) {
-      provider = new JsonRpcProvider(POLYGON_RPC_URL);
+      provider = new JsonRpcProvider(BASE_RPC_URL);
       vault = new Wallet(VAULT_PRIVATE_KEY, provider);
       usdc = new Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, vault);
     }

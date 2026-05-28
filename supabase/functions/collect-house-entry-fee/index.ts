@@ -23,7 +23,7 @@ const ALCHEMY_API_KEY = Deno.env.get("ALCHEMY_API_KEY") || "";
 const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "80002");
 
 // Contract addresses
-const USDC_CONTRACT_ADDRESS = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
+const USDC_CONTRACT_ADDRESS = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const VAULT_ADDRESS = Deno.env.get("PLATFORM_VAULT_ADDRESS") || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
 
 // USDC ABI for permit and transfer

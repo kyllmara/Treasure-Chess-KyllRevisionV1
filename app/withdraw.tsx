@@ -2,7 +2,7 @@
  * Withdrawal Screen
  *
  * Three withdrawal methods:
- * - Polygon Wallet: Direct USDC transfer on Polygon (platform vault pays gas)
+ * - Base Wallet: Direct USDC transfer on Base (platform vault pays gas)
  * - Bridge to Other Chain: Cross-chain USDC via LI.FI
  * - Bank Transfer: Manual bank transfer processed by admin
  *
@@ -65,7 +65,6 @@ import {
   type QuoteFeeBreakdown,
 } from "@/lib/lifi";
 import { tctToUsd, tctToUsdc } from "@/lib/fiat-ramp";
-import { getRelaySDK } from "@/lib/relay";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -75,7 +74,7 @@ const USDC_TO_TCT = 25; // 1 USDC = 25 TCT
 const MIN_WITHDRAWAL_TCT = 250; // Flat $10 minimum across all methods
 const WITHDRAWAL_FEE_PERCENT = 1; // 1% platform fee
 
-type WithdrawalMethod = "polygon" | "bridge" | "bank";
+type WithdrawalMethod = "base" | "bridge" | "bank";
 type WithdrawalStep =
   | "select"
   | "chain-select"
@@ -188,7 +187,7 @@ function PendingWithdrawalItem({ withdrawal }: { withdrawal: PendingWithdrawal }
   const chain = getChainById(explorerChainId);
 
   const methodLabel = (() => {
-    if (withdrawal.type === "polygon") return "USDC on Polygon";
+    if (withdrawal.type === "base") return "USDC on Base";
     if (withdrawal.type === "bridge") {
       const destChain = withdrawal.chainId ? getChainById(withdrawal.chainId) : null;
       return destChain ? `Bridge to ${destChain.name}` : "Cross-chain bridge";
@@ -301,7 +300,7 @@ export default function WithdrawScreen() {
   // Get wallet address
   const cryptoAddress = walletAddress || profile?.embeddedWalletAddress || null;
 
-  // Destination chains (exclude Polygon for bridge)
+  // Destination chains (exclude Base for bridge, since Base is the source)
   const bridgeChains = useMemo(() => {
     return SUPPORTED_CHAINS.filter((c) => c.chainId !== SOURCE_CHAIN_ID);
   }, []);
@@ -340,7 +339,7 @@ export default function WithdrawScreen() {
   // Validate address for current method
   const isValidAddress = useMemo(() => {
     if (!destinationAddress) return false;
-    if (method === "polygon") {
+    if (method === "base") {
       return validateAddress(destinationAddress, SOURCE_CHAIN_ID);
     }
     if (method === "bridge" && destinationChain) {
@@ -419,7 +418,7 @@ export default function WithdrawScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (method === "polygon") {
+    if (method === "base") {
       setStep("confirm");
     } else if (method === "bridge" && destinationChain && cryptoAddress) {
       // Fetch LI.FI quote
@@ -456,10 +455,10 @@ export default function WithdrawScreen() {
     setStep("confirm");
   }, [isValidBankDetails]);
 
-  // Polygon withdrawal - uses permit-based relay for gasless transfers
-  const handlePolygonWithdrawal = useCallback(async () => {
-    if (!cryptoAddress || !profile?.id) {
-      Alert.alert("Error", "Wallet not ready. Please try again.");
+  // Base wallet withdrawal — locks TCT and queues a USDC transfer from vault
+  const handleBaseWithdrawal = useCallback(async () => {
+    if (!profile?.id) {
+      Alert.alert("Error", "You must be logged in to withdraw.");
       return;
     }
 
@@ -467,65 +466,53 @@ export default function WithdrawScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Convert TCT amount to USDC
-      const amountUsdc = tctToUsdc(amount).toFixed(6);
-
-      console.log("[Withdraw] Starting withdrawal:", {
-        amountTct: amount,
-        amountUsdc,
-        destination: destinationAddress,
-        userAddress: cryptoAddress,
-      });
-
       if (!isSupabaseConfigured) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
         setWithdrawalResult({
           success: true,
-          txHash: `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`,
-          message: "Withdrawal submitted successfully!",
+          message: "Withdrawal submitted! USDC will arrive in your wallet shortly.",
           chainId: SOURCE_CHAIN_ID,
         });
         setStep("complete");
         return;
       }
 
-      // Use relay SDK to sign permit and submit withdrawal
-      const relaySDK = getRelaySDK();
+      const idempotencyKey = `withdraw_${profile.id}_${Date.now()}`;
 
-      // Make sure SDK is initialized
-      if (!relaySDK.isInitialized()) {
-        throw new Error("Wallet not initialized. Please reload the app.");
-      }
+      const { data, error } = await supabase.rpc("request_withdrawal", {
+        p_user_id: profile.id,
+        p_amount_tct: amount,
+        p_to_address: destinationAddress,
+        p_idempotency_key: idempotencyKey,
+      });
 
-      // Sign permit and submit withdrawal
-      const result = await relaySDK.withdrawToExternal(amountUsdc, destinationAddress);
+      if (error) throw error;
 
-      if (!result.success) {
-        throw new Error(result.error || "Withdrawal failed");
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.success) {
+        throw new Error(row?.error_message || "Withdrawal request failed");
       }
 
       setWithdrawalResult({
         success: true,
-        txHash: result.txHash,
-        message: `Withdrawal complete! ${result.netAmountUsdc} USDC sent to ${destinationAddress.slice(0, 10)}... (${result.feeUsdc} USDC fee)`,
+        message: `Withdrawal submitted! ${netAmountUsdc.toFixed(2)} USDC will be sent to ${destinationAddress.slice(0, 10)}... within 15 minutes.`,
         chainId: SOURCE_CHAIN_ID,
       });
 
-      await Promise.all([refreshWalletBalance(), refreshBalance()]);
+      await Promise.all([refreshBalance()]);
       if (profile?.id) {
         await refreshTransactions(profile.id);
       }
 
       setStep("complete");
     } catch (error) {
-      console.error("Polygon withdrawal error:", error);
       const errorMessage = error instanceof Error ? error.message : "Withdrawal failed";
       Alert.alert("Withdrawal Failed", errorMessage);
       setWithdrawalResult({ success: false, message: errorMessage });
     } finally {
       setIsLoading(false);
     }
-  }, [cryptoAddress, profile?.id, amount, destinationAddress, refreshWalletBalance, refreshBalance, refreshTransactions]);
+  }, [profile?.id, amount, destinationAddress, netAmountUsdc, refreshBalance, refreshTransactions]);
 
   // Bridge withdrawal
   const handleBridgeWithdrawal = useCallback(async () => {
@@ -558,7 +545,7 @@ export default function WithdrawScreen() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("process-withdrawal", {
+      const { data, error } = await supabase.functions.invoke("process-withdrawals", {
         body: {
           userId: profile.id,
           amountTct: amount,
@@ -676,7 +663,7 @@ export default function WithdrawScreen() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke("process-withdrawal", {
+      const { data, error } = await supabase.functions.invoke("process-withdrawals", {
         body: {
           userId: profile.id,
           amountTct: amount,
@@ -717,14 +704,14 @@ export default function WithdrawScreen() {
 
   // Handle confirm step submit
   const handleConfirmSubmit = useCallback(() => {
-    if (method === "polygon") {
-      handlePolygonWithdrawal();
+    if (method === "base") {
+      handleBaseWithdrawal();
     } else if (method === "bridge") {
       handleBridgeWithdrawal();
     } else if (method === "bank") {
       handleBankWithdrawal();
     }
-  }, [method, handlePolygonWithdrawal, handleBridgeWithdrawal, handleBankWithdrawal]);
+  }, [method, handleBaseWithdrawal, handleBridgeWithdrawal, handleBankWithdrawal]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -769,7 +756,7 @@ export default function WithdrawScreen() {
         setStep("address");
         break;
       case "confirm":
-        if (method === "polygon") {
+        if (method === "base") {
           setStep("address");
         } else if (method === "bank") {
           setStep("bank-details");
@@ -802,12 +789,12 @@ export default function WithdrawScreen() {
 
         <View style={styles.methodsContainer}>
           <MethodCard
-            title="Polygon Wallet"
-            subtitle="USDC to any Polygon address"
+            title="Base Wallet"
+            subtitle="USDC to any Base address"
             icon={Send}
-            gradientColors={["#8247E5", "#6B3FA0"]}
-            onPress={() => handleSelectMethod("polygon")}
-            badge="Instant"
+            gradientColors={["#0052FF", "#003DC4"]}
+            onPress={() => handleSelectMethod("base")}
+            badge="~15 min"
             disabled={availableBalance < MIN_WITHDRAWAL_TCT}
           />
 
@@ -880,8 +867,8 @@ export default function WithdrawScreen() {
 
   const renderAmountStep = () => {
     const methodLabel =
-      method === "polygon"
-        ? "Withdraw to Polygon Wallet"
+      method === "base"
+        ? "Withdraw to Base Wallet"
         : method === "bridge"
         ? `Bridge to ${destinationChain?.name || "Other Chain"}`
         : "Withdraw to Bank";
@@ -978,7 +965,7 @@ export default function WithdrawScreen() {
             <Text style={styles.feeLabelTotal}>You'll Receive</Text>
             <View style={styles.feeValueTotal}>
               <Text style={styles.feeTctTotal}>{formatTCT(netAmount)} TCT</Text>
-              {(method === "polygon" || method === "bridge") && (
+              {(method === "base" || method === "bridge") && (
                 <Text style={styles.feeUsdcTotal}>{"\u2248"} {netAmountUsdc.toFixed(2)} USDC</Text>
               )}
               {method === "bank" && (
@@ -1009,10 +996,10 @@ export default function WithdrawScreen() {
 
   const renderAddressStep = () => {
     const chainForValidation =
-      method === "polygon" ? getChainById(SOURCE_CHAIN_ID) : destinationChain;
+      method === "base" ? getChainById(SOURCE_CHAIN_ID) : destinationChain;
     const placeholder = chainForValidation?.addressPlaceholder || "0x...";
     const networkName =
-      method === "polygon" ? "Polygon" : destinationChain?.name || "destination chain";
+      method === "base" ? "Base" : destinationChain?.name || "destination chain";
 
     return (
       <View style={styles.stepContent}>
@@ -1277,7 +1264,7 @@ export default function WithdrawScreen() {
           <View style={styles.signatureNote}>
             <Info size={16} color="#4ECDC4" />
             <Text style={styles.signatureNoteText}>
-              Bridge fees are paid from the transferred USDC. The platform vault covers Polygon gas.
+              Bridge fees are paid from the transferred USDC. The platform vault covers Base gas.
             </Text>
           </View>
         </View>
@@ -1311,17 +1298,17 @@ export default function WithdrawScreen() {
   };
 
   const renderConfirmStep = () => {
-    const isPolygon = method === "polygon";
+    const isBase = method === "base";
     const isBank = method === "bank";
 
-    const iconColor = isPolygon ? "#8247E5" : isBank ? "#0075EB" : "#FFD700";
-    const ConfirmIcon = isPolygon ? Send : isBank ? Building2 : ArrowUpRight;
+    const iconColor = isBase ? "#0052FF" : isBank ? "#0075EB" : "#FFD700";
+    const ConfirmIcon = isBase ? Send : isBank ? Building2 : ArrowUpRight;
 
     return (
       <View style={styles.stepContent}>
         <Text style={styles.stepTitle}>Confirm Withdrawal</Text>
         <Text style={styles.stepSubtitle}>
-          {isBank ? "Review your bank withdrawal" : "Review and sign to authorize"}
+          {isBank ? "Review your bank withdrawal" : "Review your withdrawal details"}
         </Text>
 
         <View style={styles.confirmCard}>
@@ -1338,7 +1325,7 @@ export default function WithdrawScreen() {
           </View>
 
           <View style={styles.confirmDetails}>
-            {isPolygon && (
+            {isBase && (
               <>
                 <View style={styles.confirmRow}>
                   <Text style={styles.confirmLabel}>To</Text>
@@ -1346,15 +1333,15 @@ export default function WithdrawScreen() {
                 </View>
                 <View style={styles.confirmRow}>
                   <Text style={styles.confirmLabel}>Network</Text>
-                  <Text style={styles.confirmValue}>Polygon</Text>
+                  <Text style={styles.confirmValue}>Base</Text>
                 </View>
                 <View style={styles.confirmRow}>
                   <Text style={styles.confirmLabel}>Token</Text>
                   <Text style={styles.confirmValue}>USDC</Text>
                 </View>
                 <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Gas Fee</Text>
-                  <Text style={[styles.confirmValue, { color: "#4ECDC4" }]}>Free (Platform Pays)</Text>
+                  <Text style={styles.confirmLabel}>Processing Time</Text>
+                  <Text style={[styles.confirmValue, { color: "#4ECDC4" }]}>~15 minutes</Text>
                 </View>
               </>
             )}
@@ -1399,13 +1386,13 @@ export default function WithdrawScreen() {
             <Text style={[styles.signatureNoteText, { color: iconColor }]}>
               {isBank
                 ? "Your bank details are stored securely. An admin will process the transfer."
-                : "You'll sign a message with your wallet to authorize this withdrawal."}
+                : "Your TCT is locked and USDC will be sent from the platform vault to your address."}
             </Text>
           </View>
         </View>
 
         {/* Final Warning for Crypto */}
-        {isPolygon && (
+        {isBase && (
           <View style={styles.finalWarningBox}>
             <AlertCircle size={18} color="#F5576C" />
             <Text style={styles.finalWarningText}>
@@ -1429,14 +1416,14 @@ export default function WithdrawScreen() {
               <>
                 <ActivityIndicator size="small" color="#FFFFFF" />
                 <Text style={styles.continueButtonText}>
-                  {isBank ? "Submitting..." : "Signing..."}
+                  {isBank ? "Submitting..." : "Processing..."}
                 </Text>
               </>
             ) : (
               <>
                 <Shield size={20} color="#000" />
                 <Text style={[styles.continueButtonText, { color: "#000" }]}>
-                  {isBank ? "Submit Withdrawal" : "Sign & Withdraw"}
+                  {isBank ? "Submit Withdrawal" : "Confirm Withdrawal"}
                 </Text>
               </>
             )}
@@ -1466,7 +1453,7 @@ export default function WithdrawScreen() {
               }}
             >
               <ExternalLink size={16} color="#FFD700" />
-              <Text style={styles.txHashText}>View Source TX on PolygonScan</Text>
+              <Text style={styles.txHashText}>View Source TX on BaseScan</Text>
             </TouchableOpacity>
           )}
 

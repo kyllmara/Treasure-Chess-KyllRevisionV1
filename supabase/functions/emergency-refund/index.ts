@@ -57,9 +57,9 @@ serve(async (req) => {
       "BACKEND_SIGNER_PRIVATE_KEY"
     );
     const ESCROW_CONTRACT_ADDRESS = Deno.env.get("ESCROW_CONTRACT_ADDRESS");
-    const POLYGON_RPC_URL =
-      Deno.env.get("POLYGON_RPC_URL") ||
-      "https://rpc-amoy.polygon.technology";
+    const BASE_RPC_URL =
+      Deno.env.get("BASE_RPC_URL") ||
+      "https://mainnet.base.org";
 
     if (!BACKEND_SIGNER_PRIVATE_KEY || !ESCROW_CONTRACT_ADDRESS) {
       throw new Error("Missing required environment variables");
@@ -117,7 +117,7 @@ serve(async (req) => {
     console.log(`[emergency-refund] Request from ${user.id} for game ${onChainGameId}`);
 
     // Initialize provider and contract
-    const provider = new JsonRpcProvider(POLYGON_RPC_URL);
+    const provider = new JsonRpcProvider(BASE_RPC_URL);
     const signer = new Wallet(BACKEND_SIGNER_PRIVATE_KEY, provider);
     const escrow = new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, signer);
 

@@ -39,10 +39,10 @@ import type { Profile, Balance } from "@/types/supabase";
 // ============================================================================
 
 // Use environment variables for network configuration
-const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x41e94eb019c0762f9bfcf9fb1e58725bfb0e7582"; // Default to Amoy USDC
+const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
 const USDC_DECIMALS = 6;
 const USDC_TO_TCT_RATE = 25; // 1 USDC = 25 TCT
-const RPC_URL = process.env.EXPO_PUBLIC_RPC_URL || "https://rpc-amoy.polygon.technology";
+const RPC_URL = process.env.EXPO_PUBLIC_RPC_URL || "https://mainnet.base.org";
 const BALANCE_OF_SELECTOR = "0x70a08231";
 
 // ============================================================================

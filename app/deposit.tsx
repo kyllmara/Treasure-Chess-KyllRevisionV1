@@ -70,10 +70,10 @@ const USDC_TO_TCT = 25; // 1 USDC = 25 TCT
 const PRESET_AMOUNTS_USD = [10, 25, 50, 100];
 const REQUIRED_CONFIRMATIONS = 12;
 
-// Chain info - using Polygon Amoy testnet (switch to Polygon mainnet for production)
-const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
-const NETWORK_NAME = "Polygon Amoy"; // Change to "Polygon" for mainnet
-const BLOCK_EXPLORER = "https://amoy.polygonscan.com"; // Change to "https://polygonscan.com" for mainnet
+// Chain info - Base mainnet
+const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const NETWORK_NAME = "Base";
+const BLOCK_EXPLORER = "https://basescan.org";
 
 type DepositMethod = "fiat" | "crypto";
 type DepositStep = "select" | "amount" | "fiat-confirm" | "crypto-address" | "pending";

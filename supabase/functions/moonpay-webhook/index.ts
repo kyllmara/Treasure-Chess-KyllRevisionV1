@@ -163,8 +163,9 @@ async function processOrder(
   const usdcAmount = transaction.quoteCurrencyAmount;
   const tctAmount = usdcAmount * USDC_TO_TCT;
 
-  // Update order status
-  const { error: updateError } = await supabase
+  // Atomic update: only proceeds if status is not already "completed"
+  // This prevents double-crediting when MoonPay retries the webhook
+  const { data: updated, error: updateError } = await supabase
     .from("payment_orders")
     .update({
       status: "completed",
@@ -178,11 +179,19 @@ async function processOrder(
       webhook_payload: transaction,
       completed_at: new Date().toISOString(),
     })
-    .eq("id", order.id);
+    .eq("id", order.id)
+    .neq("status", "completed")
+    .select("id");
 
   if (updateError) {
     console.error("Failed to update order:", updateError);
     return { success: false, error: updateError.message };
+  }
+
+  // If no rows updated, this webhook was already processed — safe no-op
+  if (!updated || updated.length === 0) {
+    console.log("Order already completed (idempotency check):", order.id);
+    return { success: true };
   }
 
   // Process the completion (credit user balance)

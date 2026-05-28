@@ -168,9 +168,9 @@ serve(async (req) => {
     const FORWARDER_ADDRESS = Deno.env.get("FORWARDER_ADDRESS");
     const ESCROW_CONTRACT_ADDRESS = Deno.env.get("ESCROW_CONTRACT_ADDRESS");
     const USDC_CONTRACT_ADDRESS =
-      Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
-    const POLYGON_RPC_URL =
-      Deno.env.get("POLYGON_RPC_URL") || "https://rpc-amoy.polygon.technology";
+      Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+    const BASE_RPC_URL =
+      Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 
     if (!BACKEND_SIGNER_PRIVATE_KEY) {
       throw new Error("BACKEND_SIGNER_PRIVATE_KEY not configured");
@@ -274,7 +274,7 @@ serve(async (req) => {
       const VAULT_ADDRESS = Deno.env.get("PLATFORM_VAULT_ADDRESS") || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
 
       // Initialize provider and platform wallet
-      const provider = new JsonRpcProvider(POLYGON_RPC_URL);
+      const provider = new JsonRpcProvider(BASE_RPC_URL);
       const platformWallet = new Wallet(BACKEND_SIGNER_PRIVATE_KEY, provider);
 
       console.log(`[relay] Platform wallet: ${platformWallet.address}, Vault: ${VAULT_ADDRESS}`);
@@ -384,7 +384,7 @@ serve(async (req) => {
     console.log(`[relay] Processing ${operation} from ${forwardRequest.from}`);
 
     // Initialize provider and platform wallet
-    const provider = new JsonRpcProvider(POLYGON_RPC_URL);
+    const provider = new JsonRpcProvider(BASE_RPC_URL);
     const platformWallet = new Wallet(BACKEND_SIGNER_PRIVATE_KEY, provider);
 
     console.log(`[relay] Platform wallet: ${platformWallet.address}`);

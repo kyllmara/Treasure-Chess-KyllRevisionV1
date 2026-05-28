@@ -18,13 +18,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserStore } from '@/stores/userStore';
 
 // Configuration from environment
-const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582';
-const CHAIN_ID = process.env.EXPO_PUBLIC_CHAIN_ID || '80002';
+const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const CHAIN_ID = process.env.EXPO_PUBLIC_CHAIN_ID || '8453';
 
 // Network info
-const isTestnet = CHAIN_ID === '80002';
-const NETWORK_NAME = isTestnet ? 'Polygon Amoy' : 'Polygon';
-const BLOCK_EXPLORER = isTestnet ? 'https://amoy.polygonscan.com' : 'https://polygonscan.com';
+const NETWORK_NAME = 'Base';
+const BLOCK_EXPLORER = 'https://basescan.org';
 
 interface ConnectWalletModalProps {
   visible: boolean;

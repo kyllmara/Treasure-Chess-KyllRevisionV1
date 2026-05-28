@@ -19,8 +19,8 @@ export interface ChainDefinition {
   isEvm: boolean;
 }
 
-// Polygon is the source chain (where user funds live)
-export const SOURCE_CHAIN_ID = 137;
+// Base is the source chain (where platform vault lives)
+export const SOURCE_CHAIN_ID = 8453;
 
 export const SUPPORTED_CHAINS: ChainDefinition[] = [
   {
@@ -155,7 +155,7 @@ export function getExplorerTxUrl(txHash: string, chainId: number): string {
 }
 
 /**
- * Check if a chain is the source chain (Polygon) — same-chain transfer
+ * Check if a chain is the source chain (Base) — same-chain transfer
  */
 export function isSameChain(chainId: number): boolean {
   return chainId === SOURCE_CHAIN_ID;
