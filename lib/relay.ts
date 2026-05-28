@@ -69,7 +69,7 @@ const RELAY_ENDPOINT =
   process.env.EXPO_PUBLIC_SUPABASE_URL + "/functions/v1/relay-transaction";
 const HOUSE_ENTRY_FEE_ENDPOINT =
   process.env.EXPO_PUBLIC_SUPABASE_URL + "/functions/v1/house-entry-fee";
-const CHAIN_ID = parseInt(process.env.EXPO_PUBLIC_CHAIN_ID || "80002");
+const CHAIN_ID = parseInt(process.env.EXPO_PUBLIC_CHAIN_ID || "8453");
 const FORWARDER_ADDRESS = process.env.EXPO_PUBLIC_FORWARDER_ADDRESS || "";
 const ESCROW_CONTRACT_ADDRESS =
   process.env.EXPO_PUBLIC_ESCROW_CONTRACT_ADDRESS || "";
@@ -1088,7 +1088,7 @@ export class RelaySDK {
     }
 
     // Create a read-only provider for scanning
-    const rpcUrl = process.env.EXPO_PUBLIC_RPC_URL || "https://polygon-amoy-bor-rpc.publicnode.com";
+    const rpcUrl = process.env.EXPO_PUBLIC_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
     const GAME_CREATED_TOPIC = ethers.id("GameCreated(bytes32,address,uint256,uint256)");
