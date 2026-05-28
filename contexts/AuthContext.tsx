@@ -353,11 +353,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logger.authEvent("login", "success", { userId: authUserId });
     } catch (e) {
       logger.error("Auth", "Error handling session", { error: String(e) });
-      setState((s) => ({
-        ...s,
+      // On unrecoverable error, treat as unauthenticated so index.tsx redirects to login
+      setState({
+        ...initialState,
+        mode: "guest",
+        isMagicReady: true,
         isLoading: false,
-        error: createAuthError("PROFILE_FETCH_FAILED", "Login succeeded but failed to load profile"),
-      }));
+        isGuest: true,
+        profile: GUEST_PROFILE,
+        error: createAuthError("PROFILE_FETCH_FAILED", "Login succeeded but profile could not be loaded. Please try again."),
+        walletProvider: null,
+      });
     } finally {
       profileSyncInProgress.current = false;
     }
@@ -378,7 +384,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (event === "SIGNED_IN" && session) {
         await handleSession(session);
       } else if (event === "SIGNED_OUT") {
-        const guestMode = await AsyncStorage.getItem(GUEST_MODE_KEY);
         setState({
           ...initialState,
           mode: "guest",
@@ -394,8 +399,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (session) {
           await handleSession(session);
         } else {
-          // No active session — check if user chose guest mode
-          const guestMode = await AsyncStorage.getItem(GUEST_MODE_KEY);
+          // No active session — unauthenticated (index.tsx redirects to login)
           setState({
             ...initialState,
             mode: "guest",
