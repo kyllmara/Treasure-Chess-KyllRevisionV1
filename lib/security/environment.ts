@@ -184,7 +184,6 @@ export function runSecurityChecks(): SecurityCheckResult {
   const requiredEnvVars = [
     "EXPO_PUBLIC_SUPABASE_URL",
     "EXPO_PUBLIC_SUPABASE_ANON_KEY",
-    "EXPO_PUBLIC_PRIVY_APP_ID",
   ];
 
   for (const envVar of requiredEnvVars) {

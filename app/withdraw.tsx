@@ -800,12 +800,12 @@ export default function WithdrawScreen() {
 
           <MethodCard
             title="Bridge to Other Chain"
-            subtitle="Cross-chain USDC via LI.FI"
+            subtitle="Coming soon — Base wallet withdrawal available now"
             icon={Globe}
-            gradientColors={["#4ECDC4", "#44A08D"]}
-            onPress={() => handleSelectMethod("bridge")}
-            badge="Multi-chain"
-            disabled={availableBalance < MIN_WITHDRAWAL_TCT}
+            gradientColors={["#555", "#444"]}
+            onPress={() => Alert.alert("Coming Soon", "Cross-chain bridging is not yet available. Please withdraw to your Base wallet.")}
+            badge="Soon"
+            disabled={true}
           />
 
           <MethodCard

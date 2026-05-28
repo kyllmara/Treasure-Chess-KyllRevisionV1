@@ -35,8 +35,6 @@ import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 
 const PRESET_AMOUNTS = [10, 25, 50, 100];
 const TCT_TO_USD = 0.04;
-// Use vault address from environment variable
-const VAULT_ADDRESS = process.env.EXPO_PUBLIC_VAULT_CONTRACT || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
 // Network configuration
 const NETWORK_NAME = "Base";
 const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -52,7 +50,7 @@ function WalletContent() {
   const profile = useUserStore((state) => state.profile);
   const { user } = useAuth();
 
-  // Use the useWallet hook for on-chain balance (Magic Link wallet)
+  // Use the useWallet hook for on-chain balance
   const {
     address: walletAddress,
     availableTCT: onChainTctBalance,
@@ -150,7 +148,7 @@ function WalletContent() {
     getCombinedTransactions,
   } = useWalletStore();
 
-  // Use on-chain TCT balance from Magic Link wallet
+  // TCT balance from wallet store
   const tctBalance = onChainTctBalance;
 
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");

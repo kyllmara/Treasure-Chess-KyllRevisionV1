@@ -307,6 +307,34 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Method not allowed" }, 405);
     }
 
+    // =========================================================================
+    // AUTH CHECK: extract caller identity from the Authorization header.
+    // When called by the game-session edge function or client, a valid Supabase
+    // JWT is present. We decode it to get the caller's user ID.
+    // =========================================================================
+    let callerUserId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const parts = authHeader.substring(7).split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          // service_role bypass — internal calls from cron/edge functions
+          if (payload.role === "service_role") {
+            callerUserId = "service_role";
+          } else if (payload.sub) {
+            // Look up profile by privy_user_id = sub (Supabase Auth UUID)
+            const { data: callerProfile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("privy_user_id", payload.sub)
+              .single();
+            callerUserId = callerProfile?.id ?? null;
+          }
+        }
+      } catch (_) {}
+    }
+
     let body;
     try {
       body = await req.json();
@@ -338,8 +366,18 @@ Deno.serve(async (req) => {
 
     let gameRecord = game as GameRecord;
 
-    // If game is not yet completed but client provided result, complete it now
+    // If game is not yet completed but client provided result, complete it now.
+    // Security: only a player in the game (or service_role) may force-complete it.
     if (gameRecord.status !== "completed" && result) {
+      const isPlayer =
+        callerUserId === "service_role" ||
+        callerUserId === gameRecord.white_player_id ||
+        callerUserId === gameRecord.black_player_id;
+
+      if (!isPlayer) {
+        console.error("[game-complete] Unauthorized force-complete attempt by", callerUserId);
+        return jsonResponse({ error: "Forbidden — you are not a player in this game" }, 403);
+      }
       console.log(`[game-complete] Completing game ${gameId} with result: ${result}`);
 
       // Use RPC function to bypass trigger restrictions

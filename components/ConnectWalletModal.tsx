@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,25 +10,28 @@ import {
   Linking,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { X, Wallet, Check, Copy, ExternalLink } from 'lucide-react-native';
+import { X, Wallet, Check, Copy, ExternalLink, ArrowRight, AlertCircle } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserStore } from '@/stores/userStore';
+import { getVaultAddress, USDC_CONTRACT_ADDRESS } from '@/lib/vault';
+import { supabase } from '@/lib/supabase';
 
-// Configuration from environment
-const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const CHAIN_ID = process.env.EXPO_PUBLIC_CHAIN_ID || '8453';
-
-// Network info
 const NETWORK_NAME = 'Base';
 const BLOCK_EXPLORER = 'https://basescan.org';
+
+function isValidAddress(addr: string): boolean {
+  return /^0x[0-9a-fA-F]{40}$/.test(addr.trim());
+}
 
 interface ConnectWalletModalProps {
   visible: boolean;
   onClose: () => void;
-  depositAmount?: number; // USD amount selected for deposit
+  depositAmount?: number;
   onTransactionComplete?: (txHash: string, amount: number) => void;
 }
 
@@ -40,175 +43,139 @@ export function ConnectWalletModal({
 }: ConnectWalletModalProps) {
   const { user, isAuthenticated } = useAuth();
   const profile = useUserStore((state) => state.profile);
-  const [addressCopied, setAddressCopied] = useState(false);
+  const updateProfile = useUserStore((state) => state.updateProfile);
+
+  const [vaultAddress, setVaultAddress] = useState<string>('');
+  const [vaultLoading, setVaultLoading] = useState(true);
+  const [vaultCopied, setVaultCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get the user's Magic Link wallet address from auth context or profile (Supabase)
-  const userWalletAddress = user?.walletAddress || profile?.embeddedWalletAddress || '';
+  // Wallet registration state
+  const [editingWallet, setEditingWallet] = useState(false);
+  const [walletInput, setWalletInput] = useState('');
+  const [walletInputError, setWalletInputError] = useState('');
+  const [isSavingWallet, setIsSavingWallet] = useState(false);
 
-  const handleCopyAddress = async () => {
-    if (!userWalletAddress) {
-      Alert.alert('Error', 'No wallet address found. Please sign in first.');
-      return;
-    }
-    await Clipboard.setStringAsync(userWalletAddress);
-    setAddressCopied(true);
-    setTimeout(() => setAddressCopied(false), 2000);
+  const externalWallet = profile?.externalWalletAddress || '';
+  const showRegistrationForm = !externalWallet || editingWallet;
+
+  useEffect(() => {
+    if (!visible) return;
+    setEditingWallet(false);
+    setWalletInput('');
+    setWalletInputError('');
+    setVaultLoading(true);
+    getVaultAddress().then((addr) => {
+      setVaultAddress(addr || '');
+      setVaultLoading(false);
+    });
+  }, [visible]);
+
+  const handleCopyVaultAddress = async () => {
+    if (!vaultAddress) return;
+    await Clipboard.setStringAsync(vaultAddress);
+    setVaultCopied(true);
+    setTimeout(() => setVaultCopied(false), 2000);
   };
 
-  // Open MetaMask to send USDC to user's wallet
-  // Uses metamask:// scheme for direct app opening on mobile
+  const handleViewVaultOnExplorer = () => {
+    if (!vaultAddress) return;
+    Linking.openURL(`${BLOCK_EXPLORER}/address/${vaultAddress}`);
+  };
+
+  const handleSaveWallet = async () => {
+    const addr = walletInput.trim();
+    if (!isValidAddress(addr)) {
+      setWalletInputError('Enter a valid Ethereum address (0x...)');
+      return;
+    }
+    if (!profile?.id) return;
+
+    setIsSavingWallet(true);
+    setWalletInputError('');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ external_wallet_address: addr.toLowerCase() })
+      .eq('id', profile.id);
+
+    setIsSavingWallet(false);
+
+    if (error) {
+      setWalletInputError('Failed to save wallet address. Please try again.');
+      return;
+    }
+
+    updateProfile({ externalWalletAddress: addr.toLowerCase() });
+    setWalletInput('');
+    setEditingWallet(false);
+  };
+
   const handleMetaMaskDeepLink = async () => {
-    if (!userWalletAddress) {
-      Alert.alert('Error', 'No wallet address found. Please sign in first.');
+    if (!vaultAddress) {
+      Alert.alert('Error', 'Vault address not loaded. Please try again.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // Try multiple MetaMask deep link formats
-      // Format 1: Direct metamask:// scheme (most reliable for mobile)
-      // Format 2: Universal link with proper ERC-20 transfer params
-
-      // USDC has 6 decimals, so 1 USDC = 1000000 (1e6)
-      // Use the deposit amount if provided, otherwise default to 1 USDC
-      const usdcAmount = depositAmount ? Math.round(depositAmount * 1000000) : 1000000;
+      // USDC has 6 decimals
+      const usdcAmount = depositAmount ? Math.round(depositAmount * 1_000_000) : 1_000_000;
       const displayAmount = depositAmount ? `$${depositAmount}` : '$1';
-      const usdcAmountStr = usdcAmount.toString();
 
-      // Try the universal link format first (works when MetaMask is installed)
-      // Per MetaMask docs: https://link.metamask.io/send/{tokenAddress}@{chainId}/transfer?address={to}&uint256={amount}
-      const universalLink = `https://link.metamask.io/send/${USDC_CONTRACT}@${CHAIN_ID}/transfer?address=${userWalletAddress}&uint256=${usdcAmountStr}`;
+      // ERC-20 transfer: send USDC from user's wallet TO vault
+      const metamaskScheme = `metamask://send/${USDC_CONTRACT_ADDRESS}@${CHAIN_ID}/transfer?address=${vaultAddress}&uint256=${usdcAmount}`;
+      const universalLink = `https://link.metamask.io/send/${USDC_CONTRACT_ADDRESS}@${CHAIN_ID}/transfer?address=${vaultAddress}&uint256=${usdcAmount}`;
 
-      // Alternative: Direct scheme that opens MetaMask app
-      const metamaskScheme = `metamask://send/${USDC_CONTRACT}@${CHAIN_ID}/transfer?address=${userWalletAddress}&uint256=${usdcAmountStr}`;
-
-      console.log('[MetaMask] Trying to open MetaMask with amount:', usdcAmountStr);
-
-      // First try the metamask:// scheme (more reliable on iOS when app is installed)
-      // Wrap in try-catch because canOpenURL throws if scheme not in LSApplicationQueriesSchemes
-      let canOpenScheme = false;
+      let canOpen = false;
       try {
-        canOpenScheme = await Linking.canOpenURL(metamaskScheme);
-      } catch (e) {
-        console.log('[MetaMask] Cannot check metamask:// scheme (not in LSApplicationQueriesSchemes)');
-      }
+        canOpen = await Linking.canOpenURL(metamaskScheme);
+      } catch (_) {}
 
-      if (canOpenScheme) {
-        console.log('[MetaMask] Opening via metamask:// scheme');
+      if (canOpen) {
         await Linking.openURL(metamaskScheme);
-
-        Alert.alert(
-          'MetaMask Opened',
-          `Transaction pre-filled for ${displayAmount} USDC.\n\nConfirm the transfer in MetaMask.\n\nYour TCT balance will be credited automatically (1 USDC = 25 TCT).`,
-          [{ text: 'OK' }]
-        );
-        onTransactionComplete?.('pending', depositAmount || 0);
-        return;
-      }
-
-      // Fallback to universal link (https:// links don't need LSApplicationQueriesSchemes)
-      console.log('[MetaMask] Trying universal link:', universalLink);
-      const canOpenUniversal = await Linking.canOpenURL(universalLink);
-      if (canOpenUniversal) {
-        console.log('[MetaMask] Opening via universal link');
+      } else {
         await Linking.openURL(universalLink);
-
-        Alert.alert(
-          'MetaMask Opened',
-          `Transaction pre-filled for ${displayAmount} USDC.\n\nConfirm the transfer in MetaMask.\n\nYour TCT balance will be credited automatically (1 USDC = 25 TCT).`,
-          [{ text: 'OK' }]
-        );
-        onTransactionComplete?.('pending', depositAmount || 0);
-        return;
       }
-
-      // If neither works, offer to install MetaMask or copy address
-      const storeUrl = Platform.OS === 'ios'
-        ? 'https://apps.apple.com/app/metamask/id1438144202'
-        : 'https://play.google.com/store/apps/details?id=io.metamask';
 
       Alert.alert(
-        'MetaMask Not Found',
-        'MetaMask app is required. You can install it or copy the address to send manually.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Copy Address',
-            onPress: async () => {
-              await Clipboard.setStringAsync(userWalletAddress);
-              setAddressCopied(true);
-              setTimeout(() => setAddressCopied(false), 2000);
-              Alert.alert('Copied!', 'Wallet address copied to clipboard.');
-            }
-          },
-          { text: 'Install MetaMask', onPress: () => Linking.openURL(storeUrl) },
-        ]
+        'MetaMask Opened',
+        `Transfer pre-filled for ${displayAmount} USDC to the Treasure Chess vault.\n\nConfirm in MetaMask. Your TCT balance will be credited once confirmed on-chain (12 blocks, ~24 seconds).`,
+        [{ text: 'OK' }]
       );
+      onTransactionComplete?.('pending', depositAmount || 0);
     } catch (error) {
-      console.error('[MetaMask] Error:', error);
       Alert.alert(
         'Unable to Open MetaMask',
-        'Please copy the wallet address and send USDC manually from MetaMask.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Copy Address',
-            onPress: async () => {
-              await Clipboard.setStringAsync(userWalletAddress);
-              setAddressCopied(true);
-              setTimeout(() => setAddressCopied(false), 2000);
-            }
-          },
-        ]
+        'Copy the vault address above and send USDC manually.',
+        [{ text: 'OK' }]
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Generic wallet connection - opens a QR code / universal link approach
-  // For now, shows instructions to manually send from any wallet
-  const handleConnectAnyWallet = async () => {
-    if (!userWalletAddress) {
-      Alert.alert('Error', 'No wallet address found. Please sign in first.');
-      return;
-    }
-
-    // Copy address to clipboard and show instructions
-    await Clipboard.setStringAsync(userWalletAddress);
-    setAddressCopied(true);
-    setTimeout(() => setAddressCopied(false), 3000);
-
+  const handleOpenAnyWallet = async () => {
+    if (!vaultAddress) return;
+    await Clipboard.setStringAsync(vaultAddress);
     Alert.alert(
-      'Address Copied!',
-      `Your wallet address has been copied.\n\nOpen your preferred wallet app (Rainbow, Trust, Coinbase, etc.) and send USDC on ${NETWORK_NAME} to:\n\n${userWalletAddress.substring(0, 10)}...${userWalletAddress.substring(userWalletAddress.length - 8)}\n\nYour TCT balance will be credited automatically.`,
+      'Vault Address Copied',
+      `Open your wallet (Rainbow, Trust, Coinbase, etc.), switch to ${NETWORK_NAME}, and send USDC to:\n\n${vaultAddress.slice(0, 10)}...${vaultAddress.slice(-8)}\n\nYour TCT balance will be credited automatically.`,
       [{ text: 'OK' }]
     );
   };
 
-  // View wallet on block explorer
-  const handleViewOnExplorer = () => {
-    if (!userWalletAddress) return;
-    Linking.openURL(`${BLOCK_EXPLORER}/address/${userWalletAddress}`);
-  };
-
-  if (!userWalletAddress) {
+  if (!isAuthenticated) {
     return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Deposit Crypto</Text>
-              <TouchableOpacity onPress={onClose}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Deposit USDC</Text>
+              <TouchableOpacity onPress={onClose}><X size={24} color="#FFFFFF" /></TouchableOpacity>
             </View>
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>
-                Please sign in to view your wallet address.
-              </Text>
+              <Text style={styles.errorText}>Please sign in to deposit.</Text>
             </View>
           </View>
         </View>
@@ -223,117 +190,146 @@ export function ConnectWalletModal({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Deposit USDC</Text>
-              <TouchableOpacity onPress={onClose}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose}><X size={24} color="#FFFFFF" /></TouchableOpacity>
             </View>
 
-            {/* Your Wallet Section */}
-            <View style={styles.walletSection}>
-              <View style={styles.sectionHeader}>
-                <Wallet size={20} color="#FFD700" />
-                <Text style={styles.sectionTitle}>Your Treasure Chess Wallet</Text>
-              </View>
-              <Text style={styles.sectionDescription}>
-                Send USDC from your external wallet (MetaMask, Phantom, etc.) to this address:
-              </Text>
-
-              {/* Wallet Address Display */}
-              <View style={styles.addressContainer}>
-                <Text style={styles.addressLabel}>Wallet Address ({NETWORK_NAME})</Text>
-                <View style={styles.addressBox}>
-                  <Text style={styles.addressText} selectable>
-                    {userWalletAddress}
+            {/* Step 1: Your sending wallet */}
+            <View style={styles.stepSection}>
+              <Text style={styles.stepLabel}>STEP 1 — Your sending wallet</Text>
+              {!showRegistrationForm ? (
+                <View>
+                  <Text style={styles.stepDescription}>
+                    Deposits must come FROM this address so we can credit your account:
                   </Text>
-                </View>
-
-                <View style={styles.addressActions}>
+                  <View style={styles.addressBox}>
+                    <Text style={styles.addressText} selectable>{externalWallet}</Text>
+                  </View>
                   <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleCopyAddress}
+                    style={styles.changeLinkRow}
+                    onPress={() => { setEditingWallet(true); setWalletInput(externalWallet); }}
                   >
-                    <LinearGradient
-                      colors={addressCopied ? ['#4ECDC4', '#44A08D'] : ['#FFD700', '#FFA500']}
-                      style={styles.actionButtonGradient}
-                    >
-                      {addressCopied ? (
-                        <Check size={18} color="#0F0F1E" />
-                      ) : (
-                        <Copy size={18} color="#0F0F1E" />
-                      )}
-                      <Text style={styles.actionButtonText}>
-                        {addressCopied ? 'Copied!' : 'Copy Address'}
-                      </Text>
+                    <Text style={styles.changeLink}>Use a different wallet</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.stepDescription}>
+                    Register the wallet address you'll send USDC FROM. We use this to credit your TCT balance.
+                  </Text>
+                  <TextInput
+                    style={[styles.walletInput, walletInputError ? styles.walletInputError : null]}
+                    placeholder="0x..."
+                    placeholderTextColor="#555"
+                    value={walletInput}
+                    onChangeText={(t) => { setWalletInput(t); setWalletInputError(''); }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  {walletInputError ? (
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={13} color="#FF6B6B" />
+                      <Text style={styles.inputErrorText}>{walletInputError}</Text>
+                    </View>
+                  ) : null}
+                  <TouchableOpacity
+                    style={styles.saveButton}
+                    onPress={handleSaveWallet}
+                    disabled={isSavingWallet}
+                  >
+                    <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.saveButtonGradient}>
+                      {isSavingWallet
+                        ? <ActivityIndicator size="small" color="#0F0F1E" />
+                        : <Text style={styles.saveButtonText}>Save Wallet Address</Text>
+                      }
                     </LinearGradient>
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.explorerButton}
-                    onPress={handleViewOnExplorer}
-                  >
-                    <ExternalLink size={16} color="#888" />
-                    <Text style={styles.explorerButtonText}>View</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
+              )}
             </View>
 
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or connect wallet to transfer</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Quick Connect Options */}
-            <View style={styles.connectSection}>
-              <Text style={styles.connectDescription}>
-                Open your wallet app to send USDC to your Treasure Chess wallet:
+            {/* Step 2: Send to vault */}
+            <View style={styles.stepSection}>
+              <Text style={styles.stepLabel}>STEP 2 — Send USDC to vault</Text>
+              <Text style={styles.stepDescription}>
+                Send USDC on {NETWORK_NAME} to the Treasure Chess vault:
               </Text>
 
-              {/* MetaMask Direct */}
-              <TouchableOpacity
-                style={styles.walletButton}
-                onPress={handleMetaMaskDeepLink}
-                disabled={isLoading}
-              >
-                <LinearGradient
-                  colors={['#F6851B', '#E2761B']}
-                  style={styles.walletButtonGradient}
-                >
-                  <Wallet size={24} color="#FFFFFF" />
-                  <View style={styles.walletButtonTextContainer}>
-                    <Text style={styles.walletButtonTitle}>Connect MetaMask</Text>
-                    <Text style={styles.walletButtonSubtitle}>
-                      Opens MetaMask to send USDC
-                    </Text>
+              {vaultLoading ? (
+                <ActivityIndicator color="#FFD700" style={{ marginVertical: 12 }} />
+              ) : vaultAddress ? (
+                <>
+                  <View style={styles.addressBox}>
+                    <Text style={styles.addressText} selectable>{vaultAddress}</Text>
                   </View>
-                  {isLoading && <ActivityIndicator size="small" color="#FFFFFF" />}
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Other Wallets */}
-              <TouchableOpacity
-                style={styles.walletButton}
-                onPress={handleConnectAnyWallet}
-                disabled={isLoading}
-              >
-                <LinearGradient
-                  colors={['#3B99FC', '#1A6FDB']}
-                  style={styles.walletButtonGradient}
-                >
-                  <Copy size={24} color="#FFFFFF" />
-                  <View style={styles.walletButtonTextContainer}>
-                    <Text style={styles.walletButtonTitle}>Other Wallets</Text>
-                    <Text style={styles.walletButtonSubtitle}>
-                      Rainbow, Trust, Coinbase & more
-                    </Text>
+                  <View style={styles.addressActions}>
+                    <TouchableOpacity style={styles.actionButton} onPress={handleCopyVaultAddress}>
+                      <LinearGradient
+                        colors={vaultCopied ? ['#4ECDC4', '#44A08D'] : ['#FFD700', '#FFA500']}
+                        style={styles.actionButtonGradient}
+                      >
+                        {vaultCopied
+                          ? <Check size={16} color="#0F0F1E" />
+                          : <Copy size={16} color="#0F0F1E" />
+                        }
+                        <Text style={styles.actionButtonText}>
+                          {vaultCopied ? 'Copied!' : 'Copy Address'}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.explorerButton} onPress={handleViewVaultOnExplorer}>
+                      <ExternalLink size={14} color="#888" />
+                      <Text style={styles.explorerButtonText}>View</Text>
+                    </TouchableOpacity>
                   </View>
-                </LinearGradient>
-              </TouchableOpacity>
+                </>
+              ) : (
+                <Text style={styles.errorText}>Unable to load vault address. Please try again.</Text>
+              )}
             </View>
 
-            {/* Info Section */}
+            {/* Quick open wallet */}
+            {vaultAddress && externalWallet && !editingWallet ? (
+              <>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or open wallet directly</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.walletButton}
+                  onPress={handleMetaMaskDeepLink}
+                  disabled={isLoading}
+                >
+                  <LinearGradient colors={['#F6851B', '#E2761B']} style={styles.walletButtonGradient}>
+                    <Wallet size={22} color="#FFFFFF" />
+                    <View style={styles.walletButtonText}>
+                      <Text style={styles.walletButtonTitle}>Open MetaMask</Text>
+                      <Text style={styles.walletButtonSubtitle}>
+                        {depositAmount ? `Pre-filled: $${depositAmount} USDC → vault` : 'Opens MetaMask to send USDC'}
+                      </Text>
+                    </View>
+                    {isLoading
+                      ? <ActivityIndicator size="small" color="#FFFFFF" />
+                      : <ArrowRight size={18} color="#FFFFFF" />
+                    }
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.walletButton} onPress={handleOpenAnyWallet}>
+                  <LinearGradient colors={['#3B99FC', '#1A6FDB']} style={styles.walletButtonGradient}>
+                    <Copy size={22} color="#FFFFFF" />
+                    <View style={styles.walletButtonText}>
+                      <Text style={styles.walletButtonTitle}>Other Wallets</Text>
+                      <Text style={styles.walletButtonSubtitle}>Rainbow, Trust, Coinbase & more</Text>
+                    </View>
+                    <ArrowRight size={18} color="#FFFFFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            {/* Info */}
             <View style={styles.infoSection}>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Network:</Text>
@@ -347,12 +343,15 @@ export function ConnectWalletModal({
                 <Text style={styles.infoLabel}>Conversion:</Text>
                 <Text style={styles.infoValue}>1 USDC = 25 TCT</Text>
               </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Confirmations:</Text>
+                <Text style={styles.infoValue}>12 blocks (~24 sec)</Text>
+              </View>
             </View>
 
-            {/* Warning */}
             <View style={styles.warningBox}>
               <Text style={styles.warningText}>
-                Only send USDC on {NETWORK_NAME}. Sending other tokens or using different networks may result in permanent loss of funds.
+                Only send USDC on {NETWORK_NAME}. Send from your registered wallet above — deposits from other addresses cannot be attributed and will not be credited.
               </Text>
             </View>
           </View>
@@ -365,207 +364,124 @@ export function ConnectWalletModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'flex-end',
   },
-  scrollView: {
-    maxHeight: '90%',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-  },
+  scrollView: { maxHeight: '92%' },
+  scrollContent: { flexGrow: 1, justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: '#1A1A2E',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
+    gap: 16,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  errorContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-  },
-  // Wallet Section
-  walletSection: {
-    backgroundColor: 'rgba(255, 215, 0, 0.05)',
+  modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' },
+  errorContainer: { padding: 40, alignItems: 'center' },
+  errorText: { fontSize: 14, color: '#888', textAlign: 'center' },
+  stepSection: {
+    backgroundColor: 'rgba(255,215,0,0.04)',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: 'rgba(255,215,0,0.15)',
+    gap: 10,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
     color: '#FFD700',
+    textTransform: 'uppercase',
   },
-  sectionDescription: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  addressContainer: {
-    gap: 8,
-  },
-  addressLabel: {
-    fontSize: 12,
-    color: '#888',
-    fontWeight: '500',
-  },
+  stepDescription: { fontSize: 13, color: '#888', lineHeight: 18 },
   addressBox: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   addressText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  addressActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  actionButton: {
-    flex: 1,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
+  addressActions: { flexDirection: 'row', gap: 8 },
+  actionButton: { flex: 1, borderRadius: 10, overflow: 'hidden' },
   actionButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: 11,
+    gap: 6,
   },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0F0F1E',
-  },
+  actionButtonText: { fontSize: 13, fontWeight: '600', color: '#0F0F1E' },
   explorerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 10,
   },
-  explorerButtonText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  // Divider
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  dividerText: {
-    fontSize: 12,
-    color: '#666',
-    paddingHorizontal: 12,
-  },
-  // Connect Section
-  connectSection: {
-    marginBottom: 16,
-  },
-  connectDescription: {
+  explorerButtonText: { fontSize: 13, color: '#888' },
+  changeLinkRow: { alignItems: 'flex-start' },
+  changeLink: { fontSize: 12, color: '#FFD700', textDecorationLine: 'underline' },
+  walletInput: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 10,
+    padding: 12,
+    color: '#FFFFFF',
     fontSize: 13,
-    color: '#888',
-    marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  walletButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 10,
+  walletInputError: { borderColor: '#FF6B6B' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  inputErrorText: { fontSize: 12, color: '#FF6B6B' },
+  saveButton: { borderRadius: 10, overflow: 'hidden' },
+  saveButtonGradient: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 13,
   },
+  saveButtonText: { fontSize: 14, fontWeight: '700', color: '#0F0F1E' },
+  divider: { flexDirection: 'row', alignItems: 'center' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  dividerText: { fontSize: 11, color: '#555', paddingHorizontal: 10 },
+  walletButton: { borderRadius: 12, overflow: 'hidden' },
   walletButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 14,
+    padding: 15,
+    gap: 12,
   },
-  walletButtonTextContainer: {
-    flex: 1,
-  },
-  walletButtonTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  walletButtonSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 2,
-  },
-  // Info Section
+  walletButtonText: { flex: 1 },
+  walletButtonTitle: { fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
+  walletButtonSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   infoSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    padding: 12,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-  },
-  infoLabel: {
-    fontSize: 13,
-    color: '#888',
-  },
-  infoValue: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
-  // Warning
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  infoLabel: { fontSize: 12, color: '#888' },
+  infoValue: { fontSize: 12, color: '#FFFFFF', fontWeight: '500' },
   warningBox: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    backgroundColor: 'rgba(255,107,107,0.08)',
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.2)',
+    borderColor: 'rgba(255,107,107,0.2)',
   },
-  warningText: {
-    fontSize: 11,
-    color: '#FF6B6B',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+  warningText: { fontSize: 11, color: '#FF6B6B', textAlign: 'center', lineHeight: 16 },
 });

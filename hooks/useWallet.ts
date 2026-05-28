@@ -1,25 +1,13 @@
 /**
  * useWallet - Wallet Management Hook
  *
- * Provides access to the user's embedded wallet and balance information.
+ * Provides access to the user's wallet address and balance information.
  *
  * Features:
- * - Embedded wallet address from Magic Link
+ * - External wallet address from user profile
  * - On-chain USDC balance from Base network
  * - TCT balance calculated from USDC (1 USDC = 25 TCT)
  * - Message signing for transactions
- *
- * Usage:
- * ```tsx
- * const {
- *   address,
- *   isReady,
- *   availableTCT,
- *   availableUSDC,
- *   refreshBalance,
- *   signMessage,
- * } = useWallet();
- * ```
  */
 
 import { useCallback, useState, useEffect, useMemo } from "react";
@@ -122,29 +110,20 @@ export type UseWalletReturn = WalletState & WalletActions;
 // ============================================================================
 
 export function useWallet(): UseWalletReturn {
-  const { profile, isAuthenticated, isGuest, user, magicUser } = useAuth();
+  const { profile, isAuthenticated, isGuest, user } = useAuth();
 
   const [balance, setBalance] = useState<Balance | null>(null);
   const [onChainUsdcBalance, setOnChainUsdcBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine wallet address from multiple sources
+  // Determine wallet address: external > embedded > user object
   const address = useMemo(() => {
-    // First check Magic user's public address
-    if (magicUser?.publicAddress) {
-      return magicUser.publicAddress;
-    }
-    // Then check profile
-    if (profile?.embedded_wallet_address) {
-      return profile.embedded_wallet_address;
-    }
-    // Finally check user object
-    if (user?.walletAddress) {
-      return user.walletAddress;
-    }
+    if (profile?.external_wallet_address) return profile.external_wallet_address;
+    if (profile?.embedded_wallet_address) return profile.embedded_wallet_address;
+    if (user?.walletAddress) return user.walletAddress;
     return null;
-  }, [magicUser?.publicAddress, profile?.embedded_wallet_address, user?.walletAddress]);
+  }, [profile?.external_wallet_address, profile?.embedded_wallet_address, user?.walletAddress]);
 
   // Wallet ready status
   const isReady = useMemo(() => {

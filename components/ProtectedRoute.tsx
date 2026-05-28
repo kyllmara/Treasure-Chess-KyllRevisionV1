@@ -11,7 +11,7 @@ type ProtectedRouteProps = {
 const DEV_BYPASS_AUTH = false;
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, isMagicReady, profile } = useAuth();
+  const { isAuthenticated, isLoading, profile } = useAuth();
   const segments = useSegments();
 
   // Bypass all auth checks in development mode
@@ -20,7 +20,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // Show loading while auth state is being determined
-  if (!isMagicReady || isLoading) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />

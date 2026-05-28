@@ -3,7 +3,7 @@
  *
  * Elite-standard deposit interface featuring:
  * - MoonPay/Transak fiat on-ramp (credit card, bank transfer, Apple Pay)
- * - Crypto (USDC on Base) via Privy embedded wallet QR code
+ * - Crypto (USDC on Base) via vault deposit address
  * - Automatic provider selection based on user region
  * - Pending deposit tracking with confirmations
  * - Real-time balance updates
