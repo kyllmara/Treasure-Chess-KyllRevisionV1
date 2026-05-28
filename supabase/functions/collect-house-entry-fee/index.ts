@@ -20,7 +20,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const BACKEND_SIGNER_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY") || "";
 const ALCHEMY_API_KEY = Deno.env.get("ALCHEMY_API_KEY") || "";
-const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "80002");
+const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
 
 // Contract addresses
 const USDC_CONTRACT_ADDRESS = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";

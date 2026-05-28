@@ -23,7 +23,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAULT_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY") || "";
 const RPC_URL = Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 const USDC_CONTRACT = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "80002");
+const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
 
 // Conversion rate: 25 TCT = 1 USDC
 const TCT_TO_USDC_RATE = 25;
@@ -196,14 +196,18 @@ async function processPayout(
 
   console.log(`[process-house-payout] Sending ${usdcAmount} USDC to ${destinationAddress}`);
 
-  // Mark as processing
-  await supabase
+  // Atomically claim this attempt — skip if already processing/completed
+  const { data: claimed, error: claimError } = await supabase
     .from("house_challenge_attempts")
-    .update({
-      payout_status: "processing",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+    .update({ payout_status: "processing", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("payout_status", "pending")
+    .select("id");
+
+  if (claimError || !claimed || claimed.length === 0) {
+    console.log(`[process-house-payout] Attempt ${id} already claimed by another worker, skipping`);
+    return { attemptId: id, success: false, error: "Already processing" };
+  }
 
   try {
     let txHash: string;

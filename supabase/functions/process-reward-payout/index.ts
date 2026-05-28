@@ -18,7 +18,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAULT_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY") || "";
 const RPC_URL = Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 const USDC_CONTRACT = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "80002");
+const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
 
 // ERC20 transfer function selector
 const TRANSFER_SELECTOR = "0xa9059cbb";
@@ -149,11 +149,18 @@ async function processPayout(
 
   console.log(`[process-reward-payout] Processing payout ${id}: ${amount_usdc} USDC to ${destination_address}`);
 
-  // Mark as processing
-  await supabase
+  // Atomically claim this payout — skip if already processing/completed
+  const { data: claimed, error: claimError } = await supabase
     .from("reward_payouts")
     .update({ status: "processing", processed_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("id");
+
+  if (claimError || !claimed || claimed.length === 0) {
+    console.log(`[process-reward-payout] Payout ${id} already claimed by another worker, skipping`);
+    return { payoutId: id, success: false, error: "Already processing" };
+  }
 
   try {
     let txHash: string;
