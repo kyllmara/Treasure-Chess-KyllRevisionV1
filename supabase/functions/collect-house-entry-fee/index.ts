@@ -119,9 +119,8 @@ serve(async (req) => {
     }
 
     // Set up provider and signer
-    const rpcUrl = ALCHEMY_API_KEY
-      ? `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
-      : "https://polygon-amoy-bor-rpc.publicnode.com";
+    const rpcUrl = Deno.env.get("BASE_RPC_URL") ||
+      (ALCHEMY_API_KEY ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}` : "https://mainnet.base.org");
 
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const signer = new Wallet(BACKEND_SIGNER_PRIVATE_KEY, provider);

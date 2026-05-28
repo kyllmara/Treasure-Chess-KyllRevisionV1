@@ -59,7 +59,7 @@ serve(async (req) => {
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const BACKEND_SIGNER_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY");
     const ESCROW_CONTRACT_ADDRESS = Deno.env.get("ESCROW_CONTRACT_ADDRESS");
-    const POLYGON_RPC_URL = Deno.env.get("POLYGON_RPC_URL") || "https://polygon-rpc.com";
+    const POLYGON_RPC_URL = Deno.env.get("BASE_RPC_URL") || Deno.env.get("POLYGON_RPC_URL") || "https://mainnet.base.org";
     const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
     const SETTLEMENT_API_KEY = Deno.env.get("SETTLEMENT_API_KEY");
 
