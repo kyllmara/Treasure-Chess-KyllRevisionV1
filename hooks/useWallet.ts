@@ -25,7 +25,6 @@
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMagic } from "@/components/MagicWrapper";
 import type { Balance } from "@/types/supabase";
 
 // ============================================================================
@@ -124,7 +123,6 @@ export type UseWalletReturn = WalletState & WalletActions;
 
 export function useWallet(): UseWalletReturn {
   const { profile, isAuthenticated, isGuest, user, magicUser } = useAuth();
-  const { magic } = useMagic();
 
   const [balance, setBalance] = useState<Balance | null>(null);
   const [onChainUsdcBalance, setOnChainUsdcBalance] = useState<number>(0);
@@ -218,37 +216,12 @@ export function useWallet(): UseWalletReturn {
   // -------------------------------------------------------------------------
 
   const signMessage = useCallback(
-    async (message: string): Promise<string | null> => {
-      if (!magic || !isAuthenticated || isGuest) {
-        setError("Wallet not connected");
-        return null;
-      }
-
-      try {
-        // In Magic SDK v34+, use rpcProvider to sign messages
-        const provider = magic.rpcProvider;
-        if (!provider) {
-          setError("Failed to get wallet provider");
-          return null;
-        }
-
-        // Use personal_sign to sign the message
-        // Cast to any to access the request method
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const signature = await (provider as any).request({
-          method: "personal_sign",
-          params: [message, address],
-        });
-
-        setError(null);
-        return signature as string;
-      } catch (e) {
-        console.error("[useWallet] Error signing message:", e);
-        setError(e instanceof Error ? e.message : "Signing failed");
-        return null;
-      }
+    async (_message: string): Promise<string | null> => {
+      // Message signing requires an external wallet (Reown AppKit) — not yet implemented
+      setError("Message signing requires a connected wallet");
+      return null;
     },
-    [magic, isAuthenticated, isGuest, address]
+    []
   );
 
   // -------------------------------------------------------------------------

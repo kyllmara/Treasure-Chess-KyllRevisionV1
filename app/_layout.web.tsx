@@ -6,7 +6,6 @@ import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { MagicWrapper } from "@/components/MagicWrapper";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcClient } from "@/lib/trpc";
 
@@ -24,13 +23,11 @@ export default function RootLayout() {
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <MagicWrapper>
-              <AuthProvider>
-                <AppProvider>
-                  <Slot />
-                </AppProvider>
-              </AuthProvider>
-            </MagicWrapper>
+            <AuthProvider>
+              <AppProvider>
+                <Slot />
+              </AppProvider>
+            </AuthProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </trpc.Provider>

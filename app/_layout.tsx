@@ -4,7 +4,6 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { MagicWrapper } from "@/components/MagicWrapper";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { SyncStatusProvider } from "@/contexts/SyncStatusContext";
@@ -72,22 +71,20 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <MagicWrapper>
-          <AuthProvider>
-            <WalletInitializer>
-              <AppProvider>
-                <SyncStatusProvider>
-                  <ToastProvider>
-                    <RootLayoutNav />
-                    <NetworkStatusIndicator />
-                    <ChallengeNotificationListener />
-                    <TournamentMatchListener />
-                  </ToastProvider>
-                </SyncStatusProvider>
-              </AppProvider>
-            </WalletInitializer>
-          </AuthProvider>
-        </MagicWrapper>
+        <AuthProvider>
+          <WalletInitializer>
+            <AppProvider>
+              <SyncStatusProvider>
+                <ToastProvider>
+                  <RootLayoutNav />
+                  <NetworkStatusIndicator />
+                  <ChallengeNotificationListener />
+                  <TournamentMatchListener />
+                </ToastProvider>
+              </SyncStatusProvider>
+            </AppProvider>
+          </WalletInitializer>
+        </AuthProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

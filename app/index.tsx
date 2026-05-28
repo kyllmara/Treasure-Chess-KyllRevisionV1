@@ -416,8 +416,15 @@ const syncStatusStyles = StyleSheet.create({
 export default function HomeScreen() {
   const router = useRouter();
   const { user, t, saveGeneratedDragon, updateProfile, customChallengeMatchmaking } = useApp();
-  const { isAuthenticated, isGuest, profile } = useAuth();
+  const { isAuthenticated, isGuest, isLoading: isAuthLoading, profile } = useAuth();
   const { isAdmin, checkAdminStatus } = useAdmin();
+
+  // Redirect unauthenticated users to login — guest mode removed
+  useEffect(() => {
+    if (!isAuthLoading && isGuest) {
+      router.replace("/login");
+    }
+  }, [isAuthLoading, isGuest, router]);
   // Subscribe directly to userStore for immediate username updates
   const userStoreUsername = useUserStore((state) => state.profile?.username);
 

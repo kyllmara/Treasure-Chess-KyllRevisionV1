@@ -125,7 +125,6 @@ export default function LoginScreen() {
     resendOTP,
     loginWithGoogle,
     loginWithApple,
-    continueAsGuest,
     isLoading,
     otpState,
     otpEmail,
@@ -274,11 +273,6 @@ export default function LoginScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleContinueAsGuest = () => {
-    continueAsGuest();
-    router.replace("/");
   };
 
   // -------------------------------------------------------------------------
@@ -486,28 +480,11 @@ export default function LoginScreen() {
 
               {/* Footer */}
               <View style={styles.footer}>
-                {/* Continue as Guest */}
-                <TouchableOpacity
-                  style={styles.guestButton}
-                  onPress={handleContinueAsGuest}
-                  disabled={isButtonDisabled}
-                >
-                  <Text style={styles.guestButtonText}>Continue as Guest</Text>
-                  <Text style={styles.guestSubtext}>(Practice mode only)</Text>
-                </TouchableOpacity>
-
                 <Text style={styles.footerText}>
                   By continuing, you agree to our{" "}
                   <Text style={styles.footerLink}>Terms of Service</Text> and{" "}
                   <Text style={styles.footerLink}>Privacy Policy</Text>
                 </Text>
-
-                <View style={styles.devNote}>
-                  <Ionicons name="information-circle" size={16} color="#666" />
-                  <Text style={styles.devNoteText}>
-                    Email login works in Expo Go. OAuth requires EAS build.
-                  </Text>
-                </View>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -759,21 +736,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     marginBottom: 20,
-    gap: 16,
-  },
-  guestButton: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  guestButtonText: {
-    fontSize: 16,
-    color: "#4ECDC4",
-    fontWeight: "600",
-  },
-  guestSubtext: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
   },
   footerText: {
     fontSize: 12,
@@ -784,18 +746,5 @@ const styles = StyleSheet.create({
   footerLink: {
     color: "#888",
     textDecorationLine: "underline",
-  },
-  devNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  devNoteText: {
-    fontSize: 12,
-    color: "#666",
   },
 });

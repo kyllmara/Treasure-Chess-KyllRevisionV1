@@ -29,7 +29,6 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useUserStore } from "@/stores/userStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useAuth } from "@/hooks/useAuth";
-import { useMagic } from "@/components/MagicWrapper";
 import { NetworkMonitor, type NetworkState } from "@/lib/networkMonitor";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Profile, Balance } from "@/types/supabase";
@@ -264,22 +263,13 @@ function createDefaultStats(): HomeStats {
 
 export function useHomeStats(): UseHomeStatsResult {
   // External hooks
-  const { isAuthenticated, isGuest, magicUser } = useAuth();
+  const { isAuthenticated, isGuest } = useAuth();
   const userStore = useUserStore();
   const walletStore = useWalletStore();
 
-  // Get wallet address from multiple sources (same priority as useWallet hook)
   const walletAddress = useMemo(() => {
-    // First check Magic user's public address
-    if (magicUser?.publicAddress) {
-      return magicUser.publicAddress;
-    }
-    // Then check userStore profile
-    if (userStore.profile?.embeddedWalletAddress) {
-      return userStore.profile.embeddedWalletAddress;
-    }
-    return null;
-  }, [magicUser?.publicAddress, userStore.profile?.embeddedWalletAddress]);
+    return userStore.profile?.embeddedWalletAddress ?? null;
+  }, [userStore.profile?.embeddedWalletAddress]);
 
   // State
   const [stats, setStats] = useState<HomeStats | null>(null);
