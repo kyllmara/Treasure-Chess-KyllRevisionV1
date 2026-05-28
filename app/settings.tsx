@@ -411,7 +411,6 @@ export default function SettingsScreen() {
   const [settingsTab, setSettingsTab] = useState<"user" | "game">("user");
   // Use userStore profile username (most up-to-date), fallback to auth profile, then local user
   const [username, setUsername] = useState<string>(userStoreProfile?.username || profile?.username || user.username);
-  // Use Magic Link email if authenticated, fallback to local user email
   const [email, setEmail] = useState<string>(authUser?.email || profile?.email || user.email);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
@@ -1032,7 +1031,7 @@ export default function SettingsScreen() {
               </View>
               {isAuthenticated && (
                 <Text style={styles.inputHelperText}>
-                  Email is linked to your Magic wallet and cannot be changed
+                  Email is linked to your account and cannot be changed
                 </Text>
               )}
             </View>
