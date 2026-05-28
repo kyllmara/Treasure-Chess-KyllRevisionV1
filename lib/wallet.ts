@@ -130,11 +130,7 @@ export type TransactionCallback = (transaction: TransactionDisplayItem) => void;
 // Constants
 // ============================================================================
 
-/** TCT to USD conversion rate */
-export const TCT_TO_USD = 0.04;
-
-/** USD to TCT conversion rate */
-export const USD_TO_TCT = 25; // 1 USD = 25 TCT
+export { TCT_TO_USD, USDC_TO_TCT_RATE as USD_TO_TCT, tctToUsd, usdToTct } from "./tct";
 
 /** Minimum withdrawal amount in TCT */
 export const MIN_WITHDRAWAL_TCT = 100;
@@ -154,20 +150,6 @@ export const DEFAULT_PAGE_SIZE = 20;
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Convert TCT to USD
- */
-export function tctToUsd(tct: number): number {
-  return tct * TCT_TO_USD;
-}
-
-/**
- * Convert USD to TCT
- */
-export function usdToTct(usd: number): number {
-  return usd / TCT_TO_USD;
-}
 
 /**
  * Format TCT amount for display

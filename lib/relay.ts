@@ -152,18 +152,10 @@ const FORWARD_REQUEST_TYPES = {
 };
 
 // ============================================================================
-// TCT:USDC Conversion
+// TCT:USDC Conversion — canonical values live in lib/tct.ts
 // ============================================================================
 
-export const TCT_TO_USDC_RATE = 25;
-
-export function tctToUsdc(tct: number): number {
-  return tct / TCT_TO_USDC_RATE;
-}
-
-export function usdcToTct(usdc: number): number {
-  return usdc * TCT_TO_USDC_RATE;
-}
+export { TCT_TO_USDC_RATE, tctToUsdc, usdcToTct } from "./tct";
 
 // ============================================================================
 // Relay SDK Class

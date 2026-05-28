@@ -121,7 +121,7 @@ export const DEFAULT_RAKE_RATE = 0.05; // 5% rake
 export const DEFAULT_COMMISSION_RATE = 0.05; // 5% (alias for backward compatibility)
 export const TREASURY_SPLIT = 0.80; // 80% to treasury
 export const REWARD_POOL_SPLIT = 0.20; // 20% to reward pool
-export const TCT_TO_USD = 0.04; // 1 TCT = $0.04
+export { TCT_TO_USD, tctToUsd, usdToTct } from "./tct";
 
 // ============================================================================
 // Wager Presets
@@ -596,20 +596,6 @@ export function calculateRakeBreakdown(
     rewardPoolAmount: Math.round(rewardPoolAmount * 100) / 100,
     winnerPayout: Math.round(winnerPayout * 100) / 100,
   };
-}
-
-/**
- * Convert TCT to USD value.
- */
-export function tctToUsd(tct: number): number {
-  return tct * TCT_TO_USD;
-}
-
-/**
- * Convert USD to TCT value.
- */
-export function usdToTct(usd: number): number {
-  return usd / TCT_TO_USD;
 }
 
 /**

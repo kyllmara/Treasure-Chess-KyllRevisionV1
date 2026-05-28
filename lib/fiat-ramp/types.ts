@@ -259,10 +259,9 @@ export namespace Transak {
 }
 
 /**
- * Constants
+ * Constants — canonical values live in lib/tct.ts
  */
-export const TCT_TO_USD_RATE = 0.04; // 1 TCT = $0.04
-export const USDC_TO_TCT = 25; // 1 USDC = 25 TCT
+export { TCT_TO_USD as TCT_TO_USD_RATE, USDC_TO_TCT_RATE as USDC_TO_TCT } from "../tct";
 
 export const WITHDRAWAL_LIMITS = {
   DAILY_USD: 500,

@@ -23,6 +23,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { TCT_TO_USD as TCT_TO_USD_RATE } from "@/lib/tct";
 import type { Transaction as LocalTransaction, User as LocalUser } from "@/types";
 
 // ============================================================================
@@ -50,9 +51,6 @@ const CURRENT_MIGRATION_VERSION = 1;
 
 // Backup retention period (30 days in milliseconds)
 const BACKUP_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-
-// TCT to USD conversion rate
-const TCT_TO_USD_RATE = 0.04;
 
 // ============================================================================
 // Types

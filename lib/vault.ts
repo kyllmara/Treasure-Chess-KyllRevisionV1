@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "./supabase";
+export { USDC_TO_TCT_RATE, TCT_TO_USDC_RATE, TCT_TO_USD, usdcToTct, tctToUsdc, tctToUsd, usdToTct } from "./tct";
 
 // ============================================================================
 // Constants
@@ -16,8 +17,6 @@ import { supabase } from "./supabase";
 
 export const USDC_CONTRACT_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
 export const USDC_DECIMALS = 6;
-export const USDC_TO_TCT_RATE = 25; // 1 USDC = 25 TCT
-export const TCT_TO_USD = 0.04; // 1 TCT = $0.04
 export const MIN_WITHDRAWAL_TCT = 25; // Minimum 25 TCT ($1 USDC)
 export const REQUIRED_CONFIRMATIONS = 12;
 
@@ -334,20 +333,6 @@ export async function getUserVaultTransactions(
 // ============================================================================
 // Utility Functions
 // ============================================================================
-
-/**
- * Convert USDC to TCT.
- */
-export function usdcToTct(usdc: number): number {
-  return Math.floor(usdc * USDC_TO_TCT_RATE);
-}
-
-/**
- * Convert TCT to USDC.
- */
-export function tctToUsdc(tct: number): number {
-  return tct / USDC_TO_TCT_RATE;
-}
 
 /**
  * Format TCT for display.
