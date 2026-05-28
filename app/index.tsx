@@ -856,6 +856,17 @@ export default function HomeScreen() {
       : []),
   ];
 
+  // Show loading screen while auth initializes to prevent flash
+  if (isAuthLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0F0F1E", "#1A1A2E"]} style={[styles.gradient, { justifyContent: "center", alignItems: "center" }]}>
+          <ActivityIndicator size="large" color="#FFD700" />
+        </LinearGradient>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
