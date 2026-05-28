@@ -810,12 +810,12 @@ export default function WithdrawScreen() {
 
           <MethodCard
             title="Bank Transfer"
-            subtitle="To your bank account"
+            subtitle="Coming soon — crypto withdrawal available now"
             icon={Building2}
-            gradientColors={["#0075EB", "#005BB5"]}
-            onPress={() => handleSelectMethod("bank")}
-            badge="2-3 days"
-            disabled={availableBalance < MIN_WITHDRAWAL_TCT}
+            gradientColors={["#555", "#444"]}
+            onPress={() => Alert.alert("Coming Soon", "Bank transfers are not yet available. Please withdraw to your Base wallet.")}
+            badge="Soon"
+            disabled={true}
           />
         </View>
 
