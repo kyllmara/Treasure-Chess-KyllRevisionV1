@@ -1,0 +1,32 @@
+-- ============================================================================
+-- Migration 042: Fix finish_game end_reason enum casting
+-- ============================================================================
+-- The end_reason column also uses an enum type.
+-- ============================================================================
+
+DROP FUNCTION IF EXISTS finish_game(UUID, TEXT, TEXT, UUID, TEXT, TEXT);
+
+CREATE OR REPLACE FUNCTION finish_game(
+    p_game_id UUID,
+    p_status TEXT,
+    p_result TEXT,
+    p_winner_id UUID,
+    p_end_reason TEXT,
+    p_final_fen TEXT
+)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE games
+    SET
+        status = p_status::game_status,
+        result = p_result::game_result,
+        winner_id = p_winner_id,
+        end_reason = p_end_reason::end_reason,
+        final_fen = p_final_fen,
+        ended_at = NOW()
+    WHERE id = p_game_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION finish_game TO authenticated;
+GRANT EXECUTE ON FUNCTION finish_game TO service_role;

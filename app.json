@@ -1,0 +1,127 @@
+{
+  "expo": {
+    "name": "High Stakes Chess",
+    "slug": "high-stakes-chess",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "treasurechess",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.rork.high-stakes-chess",
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "remote-notification"
+        ],
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "metamask",
+          "rainbow",
+          "trust",
+          "uniswap",
+          "coinbase",
+          "ledgerlive"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "app.rork.high_stakes_chess",
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "./plugins/withQuickCryptoFix",
+      [
+        "expo-router",
+        {
+          "origin": "https://rork.com/"
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Cabin-Regular.ttf",
+            "./assets/fonts/Cabin-Medium.ttf",
+            "./assets/fonts/Cabin-SemiBold.ttf",
+            "./assets/fonts/Cabin-Bold.ttf",
+            "./assets/fonts/Cabin-Italic.ttf",
+            "./assets/fonts/Cabin-MediumItalic.ttf",
+            "./assets/fonts/Cabin-SemiBoldItalic.ttf",
+            "./assets/fonts/Cabin-BoldItalic.ttf",
+            "./assets/fonts/BarlowCondensed-Regular.ttf",
+            "./assets/fonts/BarlowCondensed-Medium.ttf",
+            "./assets/fonts/BarlowCondensed-Bold.ttf",
+            "./assets/fonts/PlayfairDisplay-Bold.ttf",
+            "./assets/fonts/PlayfairDisplay-Black.ttf",
+            "./assets/fonts/PlusJakartaSans-Regular.ttf",
+            "./assets/fonts/PlusJakartaSans-Medium.ttf",
+            "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans-Bold.ttf",
+            "./assets/fonts/PlusJakartaSans-ExtraBold.ttf"
+          ]
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FFD700",
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "216831c6-7862-477b-9726-79df6ef97c75"
+      }
+    },
+    "owner": "byronoc",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/216831c6-7862-477b-9726-79df6ef97c75"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+import { ScrollViewStyleReset } from "expo-router/html";
+import type { PropsWithChildren } from "react";
+
+/**
+ * This file is web-only and used to configure the root HTML for every web page during static rendering.
+ * The contents of this function only run in Node.js environments and do not have access to the DOM or browser APIs.
+ */
+export default function Root({ children }: PropsWithChildren) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"
+        />
+
+        {/* Google Fonts - Plus Jakarta Sans and Playfair Display */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap"
+          rel="stylesheet"
+        />
+
+        {/*
+          Disable body scrolling on web. This makes ScrollView components work closer to how they do on native.
+          However, body scrolling is often nice to have for mobile web. If you want to enable it, remove this line.
+        */}
+        <ScrollViewStyleReset />
+
+        {/* Custom styles for web fonts */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              body {
+                background-color: #05060f;
+              }
+              /* Map React Native font family names to Google Fonts */
+              [style*="PlusJakartaSans-Regular"] { font-family: 'Plus Jakarta Sans', sans-serif !important; font-weight: 400 !important; }
+              [style*="PlusJakartaSans-Medium"] { font-family: 'Plus Jakarta Sans', sans-serif !important; font-weight: 500 !important; }
+              [style*="PlusJakartaSans-SemiBold"] { font-family: 'Plus Jakarta Sans', sans-serif !important; font-weight: 600 !important; }
+              [style*="PlusJakartaSans-Bold"] { font-family: 'Plus Jakarta Sans', sans-serif !important; font-weight: 700 !important; }
+              [style*="PlusJakartaSans-ExtraBold"] { font-family: 'Plus Jakarta Sans', sans-serif !important; font-weight: 800 !important; }
+              [style*="PlayfairDisplay-Bold"] { font-family: 'Playfair Display', serif !important; font-weight: 700 !important; }
+              [style*="PlayfairDisplay-Black"] { font-family: 'Playfair Display', serif !important; font-weight: 900 !important; }
+            `,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}

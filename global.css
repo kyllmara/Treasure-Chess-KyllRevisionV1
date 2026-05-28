@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Plus Jakarta Sans - Primary UI font */
+@font-face {
+  font-family: 'PlusJakartaSans-Regular';
+  src: url('./assets/fonts/PlusJakartaSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans-Medium';
+  src: url('./assets/fonts/PlusJakartaSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans-SemiBold';
+  src: url('./assets/fonts/PlusJakartaSans-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans-Bold';
+  src: url('./assets/fonts/PlusJakartaSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PlusJakartaSans-ExtraBold';
+  src: url('./assets/fonts/PlusJakartaSans-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+/* Playfair Display - Serif font for branding */
+@font-face {
+  font-family: 'PlayfairDisplay-Bold';
+  src: url('./assets/fonts/PlayfairDisplay-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'PlayfairDisplay-Black';
+  src: url('./assets/fonts/PlayfairDisplay-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+
+/* Barlow Condensed - Display font */
+@font-face {
+  font-family: 'BarlowCondensed-Medium';
+  src: url('./assets/fonts/BarlowCondensed-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'BarlowCondensed-Bold';
+  src: url('./assets/fonts/BarlowCondensed-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Cabin - Legacy font (keeping for backwards compatibility) */
+@font-face {
+  font-family: 'Cabin-Regular';
+  src: url('./assets/fonts/Cabin-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cabin-Medium';
+  src: url('./assets/fonts/Cabin-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cabin-SemiBold';
+  src: url('./assets/fonts/Cabin-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cabin-Bold';
+  src: url('./assets/fonts/Cabin-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}

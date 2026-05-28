@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk -F_ '{print $1}')",
+      "Bash(awk 'NR>1{if\\($1!=prev+1\\)print \"GAP after \"prev; prev=$1}BEGIN{prev=0}')",
+      "Bash(python3 -m json.tool)",
+      "WebFetch(domain:reown.com)",
+      "WebFetch(domain:magic.link)",
+      "WebFetch(domain:www.dynamic.xyz)",
+      "WebFetch(domain:www.privy.io)",
+      "WebFetch(domain:docs.walletconnect.com)",
+      "WebSearch",
+      "Bash(gh auth *)",
+      "Bash(git --version)",
+      "Bash(env)",
+      "Bash(ssh -T git@github.com)",
+      "Read(//Users/kene_eneh/**)",
+      "Bash(security find-internet-password *)",
+      "Bash(security find-generic-password *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST https://api.github.com/user/repos -H 'Authorization: token __TRACKED_VAR__' -H 'Accept: application/vnd.github.v3+json' -d '{\"name\":\"treasure-chess-app\",\"description\":\"Treasure Chess - Play chess and win crypto\",\"private\":true}')",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
