@@ -29,7 +29,9 @@ serve(async (req) => {
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const BACKEND_SIGNER_PRIVATE_KEY = Deno.env.get("BACKEND_SIGNER_PRIVATE_KEY");
     const USDC_CONTRACT = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-    const VAULT_ADDRESS = Deno.env.get("PLATFORM_VAULT_ADDRESS") || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const { data: VAULT_ADDRESS, error: vaultErr } = await supabaseAdmin.rpc("get_vault_address");
+    if (vaultErr || !VAULT_ADDRESS) throw new Error("No vault address configured");
     const RPC_URL = Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 
     // Auth check

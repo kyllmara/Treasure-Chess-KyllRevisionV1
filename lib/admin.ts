@@ -10,8 +10,7 @@ import { supabase } from "./supabase";
 import { ethers } from "ethers";
 import { USDC_TO_TCT_RATE } from "./tct";
 
-// Platform vault configuration
-const PLATFORM_VAULT_ADDRESS = process.env.EXPO_PUBLIC_VAULT_ADDRESS || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
+// Platform vault configuration — address fetched from DB, never hardcoded
 const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_ADDRESS || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const BASE_RPC_URL = process.env.EXPO_PUBLIC_RPC_URL || "https://mainnet.base.org";
 const USDC_DECIMALS = 6;
@@ -496,15 +495,16 @@ export async function getVaultBalances(): Promise<VaultBalances | null> {
     let onChainTctBalance = 0;
 
     try {
+      const { data: vaultAddress } = await (supabase.rpc as any)("get_vault_address");
       const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
       const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, provider);
 
-      const balanceWei = await usdcContract.balanceOf(PLATFORM_VAULT_ADDRESS);
+      const balanceWei = await usdcContract.balanceOf(vaultAddress);
       onChainUsdcBalance = Number(ethers.formatUnits(balanceWei, USDC_DECIMALS));
       onChainTctBalance = onChainUsdcBalance * USDC_TO_TCT_RATE;
 
       console.log("[Admin] On-chain vault balance:", {
-        address: PLATFORM_VAULT_ADDRESS,
+        address: vaultAddress,
         usdcBalance: onChainUsdcBalance,
         tctEquivalent: onChainTctBalance,
       });
@@ -591,9 +591,10 @@ export async function getVaultStatistics(
 
     // Fetch on-chain USDC balance
     try {
+      const { data: vaultAddr } = await (supabase.rpc as any)("get_vault_address");
       const provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
       const usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, provider);
-      const balanceWei = await usdcContract.balanceOf(PLATFORM_VAULT_ADDRESS);
+      const balanceWei = await usdcContract.balanceOf(vaultAddr);
       const onChainUsdc = Number(ethers.formatUnits(balanceWei, USDC_DECIMALS));
 
       stats.push({

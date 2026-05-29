@@ -44,8 +44,6 @@ interface TransakWebhookPayload {
   webhookData: TransakOrder;
 }
 
-// Constants
-const USDC_TO_TCT = 25;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const TRANSAK_WEBHOOK_SECRET = Deno.env.get("TRANSAK_WEBHOOK_SECRET") || "";
@@ -127,9 +125,11 @@ async function processOrderCompleted(
       return { success: true };
     }
 
-    // Calculate TCT amount
+    // Calculate TCT amount using DB-driven rate
+    const { data: tctRates } = await supabase.rpc("get_tct_rates");
+    const usdcToTct = Number(tctRates?.tct_buy_rate ?? 25);
     const usdcAmount = order.cryptoAmount;
-    const tctAmount = usdcAmount * USDC_TO_TCT;
+    const tctAmount = usdcAmount * usdcToTct;
 
     // Update order status
     const { error: updateError } = await supabase

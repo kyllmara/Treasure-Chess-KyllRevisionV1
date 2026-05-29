@@ -24,7 +24,6 @@ const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
 
 // Contract addresses
 const USDC_CONTRACT_ADDRESS = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const VAULT_ADDRESS = Deno.env.get("PLATFORM_VAULT_ADDRESS") || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
 
 // USDC ABI for permit and transfer
 const USDC_ABI = [
@@ -74,6 +73,12 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       throw new Error("Not authenticated");
+    }
+
+    // Fetch vault address from DB (single source of truth)
+    const { data: VAULT_ADDRESS, error: vaultErr } = await supabase.rpc("get_vault_address");
+    if (vaultErr || !VAULT_ADDRESS) {
+      throw new Error("No vault address configured");
     }
 
     // Parse request

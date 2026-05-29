@@ -19,7 +19,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const USDC_CONTRACT_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
 const USDC_DECIMALS = 6;
 const BASE_RPC_URL = "https://mainnet.base.org";
-const TCT_TO_USDC = 0.04; // 1 TCT = $0.04 = 1/25 USDC
 
 // Acceptable discrepancy threshold (in USDC)
 const DISCREPANCY_THRESHOLD = 1.0;
@@ -93,8 +92,10 @@ async function runReconciliation(supabase: any): Promise<Response> {
     totalUserTct += Number(balance.locked_tct || 0);
   }
 
-  // Calculate expected USDC (TCT / 25)
-  const expectedUsdc = totalUserTct / 25;
+  // Calculate expected USDC using DB-driven sell rate
+  const { data: tctRates } = await supabase.rpc("get_tct_rates");
+  const tctSellRate = Number(tctRates?.tct_sell_rate ?? 25);
+  const expectedUsdc = totalUserTct / tctSellRate;
 
   // Get platform commission
   const { data: vault } = await supabase

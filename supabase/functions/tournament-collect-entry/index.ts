@@ -27,8 +27,6 @@ const BASE_RPC_URL =
 const USDC_CONTRACT_ADDRESS =
   Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
-// Conversion: 25 TCT = 1 USDC
-const TCT_TO_USDC_RATE = 1 / 25;
 
 // ERC20 ABI with permit and transferFrom for EIP-2612
 const ERC20_PERMIT_ABI = [
@@ -175,8 +173,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // --- Calculate expected USDC ---
-    const expectedUsdc = tournament.entry_fee_tct * TCT_TO_USDC_RATE;
+    // --- Calculate expected USDC using DB-driven rate ---
+    const { data: tctRates } = await supabase.rpc("get_tct_rates");
+    const tctSellRate = Number(tctRates?.tct_sell_rate ?? 25);
+    const expectedUsdc = tournament.entry_fee_tct / tctSellRate;
     const expectedWei = parseUnits(expectedUsdc.toFixed(6), 6);
     const permitWei = BigInt(permit.value);
 

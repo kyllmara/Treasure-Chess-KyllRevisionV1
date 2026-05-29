@@ -283,7 +283,9 @@ serve(async (req) => {
     // Verify the wager amounts match (additional protection)
     // Convert USDC from contract (6 decimals) to TCT for comparison
     const onChainWagerUsdc = Number(onChainGame.wagerAmount) / 1e6;
-    const expectedWagerTct = onChainWagerUsdc * 25; // 25 TCT = 1 USDC
+    const { data: tctRates } = await supabase.rpc("get_tct_rates");
+    const tctBuyRate = Number(tctRates?.tct_buy_rate ?? 25);
+    const expectedWagerTct = onChainWagerUsdc * tctBuyRate;
 
     // Allow 1% tolerance for rounding
     const wagerDiff = Math.abs(expectedWagerTct - game.wager_tct) / game.wager_tct;

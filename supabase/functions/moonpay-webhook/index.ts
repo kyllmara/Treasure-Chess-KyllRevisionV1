@@ -40,8 +40,6 @@ interface MoonPayWebhookPayload {
   data: MoonPayTransaction;
 }
 
-// Constants
-const USDC_TO_TCT = 25;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const MOONPAY_WEBHOOK_SECRET = Deno.env.get("MOONPAY_WEBHOOK_SECRET") || "";
@@ -159,9 +157,11 @@ async function processOrder(
     return { success: true };
   }
 
-  // Calculate TCT amount
+  // Calculate TCT amount using DB-driven rate
+  const { data: tctRates } = await supabase.rpc("get_tct_rates");
+  const usdcToTct = Number(tctRates?.tct_buy_rate ?? 25);
   const usdcAmount = transaction.quoteCurrencyAmount;
-  const tctAmount = usdcAmount * USDC_TO_TCT;
+  const tctAmount = usdcAmount * usdcToTct;
 
   // Atomic update: only proceeds if status is not already "completed"
   // This prevents double-crediting when MoonPay retries the webhook

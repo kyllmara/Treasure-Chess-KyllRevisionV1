@@ -25,7 +25,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const USDC_CONTRACT_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
 const USDC_DECIMALS = 6;
-const USDC_TO_TCT_RATE = 25; // 1 USDC = 25 TCT
 const REQUIRED_CONFIRMATIONS = 12;
 const BASE_RPC_URL = "https://mainnet.base.org";
 
@@ -76,8 +75,13 @@ function parseUsdcAmount(amountWei: string): number {
   return Number(amount) / Math.pow(10, USDC_DECIMALS);
 }
 
-function usdcToTct(usdcAmount: number): number {
-  return Math.floor(usdcAmount * USDC_TO_TCT_RATE);
+function usdcToTct(usdcAmount: number, rate: number): number {
+  return Math.floor(usdcAmount * rate);
+}
+
+async function getTctBuyRate(supabase: any): Promise<number> {
+  const { data } = await supabase.rpc("get_tct_rates");
+  return Number(data?.tct_buy_rate ?? 25);
 }
 
 async function getBlockNumber(): Promise<number> {
@@ -229,7 +233,8 @@ async function handleWebhookDeposit(
   }
 
   const usdcAmount = parseUsdcAmount(amount);
-  const tctAmount = usdcToTct(usdcAmount);
+  const buyRate = await getTctBuyRate(supabase);
+  const tctAmount = usdcToTct(usdcAmount, buyRate);
 
   // Check if deposit already exists
   const { data: existing } = await supabase
@@ -292,12 +297,12 @@ async function handlePollMode(
 ): Promise<Response> {
   const currentBlock = await getBlockNumber();
 
-  // Get the platform vault address
   const { data: vaultAddress } = await supabase.rpc("get_vault_address");
-
   if (!vaultAddress) {
     return jsonResponse({ error: "No vault address configured" }, 500);
   }
+
+  const buyRate = await getTctBuyRate(supabase);
 
   // Monitor only the vault address (platform custody model)
   const walletAddresses = [vaultAddress];
@@ -334,7 +339,7 @@ async function handlePollMode(
 
       if (profile) {
         const usdcAmount = parseUsdcAmount(transfer.amount);
-        const tctAmount = usdcToTct(usdcAmount);
+        const tctAmount = usdcToTct(usdcAmount, buyRate);
 
         // Create pending deposit
         const { data: newDeposit } = await supabase

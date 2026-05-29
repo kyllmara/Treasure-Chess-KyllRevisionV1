@@ -25,9 +25,6 @@ const RPC_URL = Deno.env.get("BASE_RPC_URL") || "https://mainnet.base.org";
 const USDC_CONTRACT = Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const CHAIN_ID = parseInt(Deno.env.get("CHAIN_ID") || "8453");
 
-// Conversion rate: 25 TCT = 1 USDC
-const TCT_TO_USDC_RATE = 25;
-
 // ERC20 transfer function selector
 const TRANSFER_SELECTOR = "0xa9059cbb";
 const USDC_DECIMALS = 6;
@@ -64,9 +61,9 @@ function createAdminClient() {
   });
 }
 
-// Helper: Convert TCT to USDC
-function tctToUsdc(tctAmount: number): number {
-  return tctAmount / TCT_TO_USDC_RATE;
+// Helper: Convert TCT to USDC (rate fetched from DB per-request)
+function tctToUsdc(tctAmount: number, sellRate: number): number {
+  return tctAmount / sellRate;
 }
 
 // Helper: Encode ERC20 transfer call data
@@ -161,6 +158,7 @@ async function signAndSendTransaction(
 async function processPayout(
   supabase: ReturnType<typeof createAdminClient>,
   attempt: HouseChallengeAttemptRecord,
+  sellRate: number,
 ): Promise<ProcessResult> {
   const { id, user_id, payout_amount_tct } = attempt;
 
@@ -192,7 +190,7 @@ async function processPayout(
   }
 
   console.log(`[process-house-payout] Found wallet for user: ${destinationAddress}`);
-  const usdcAmount = tctToUsdc(payout_amount_tct);
+  const usdcAmount = tctToUsdc(payout_amount_tct, sellRate);
 
   console.log(`[process-house-payout] Sending ${usdcAmount} USDC to ${destinationAddress}`);
 
@@ -287,6 +285,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabase = createAdminClient();
+    const { data: tctRates } = await supabase.rpc("get_tct_rates");
+    const sellRate = Number(tctRates?.tct_sell_rate ?? 25);
     console.log("[process-house-payout] Supabase client created");
 
     // Check if specific attempt_id(s) were provided
@@ -358,7 +358,7 @@ Deno.serve(async (req: Request) => {
     // Process each payout sequentially to manage nonces properly
     const results: ProcessResult[] = [];
     for (const attempt of attempts) {
-      const result = await processPayout(supabase, attempt as HouseChallengeAttemptRecord);
+      const result = await processPayout(supabase, attempt as HouseChallengeAttemptRecord, sellRate);
       results.push(result);
 
       // Small delay between transactions to avoid nonce issues

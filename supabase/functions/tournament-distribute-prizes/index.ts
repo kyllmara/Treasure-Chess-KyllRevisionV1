@@ -29,9 +29,6 @@ const BASE_RPC_URL =
 const USDC_CONTRACT_ADDRESS =
   Deno.env.get("USDC_CONTRACT_ADDRESS") || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
-// Conversion: 25 TCT = 1 USDC
-const TCT_TO_USDC_RATE = 1 / 25;
-
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
@@ -109,6 +106,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabase = createAdminClient();
+
+    // Load TCT sell rate from platform_config
+    const { data: tctRates } = await supabase.rpc("get_tct_rates");
+    const tctSellRate = Number(tctRates?.tct_sell_rate ?? 25);
 
     // --- Validate tournament ---
     const { data: tournament, error: tournErr } = await supabase
@@ -206,7 +207,7 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const usdcAmount = prize.amount_tct * TCT_TO_USDC_RATE;
+      const usdcAmount = prize.amount_tct / tctSellRate;
       const usdcWei = parseUnits(usdcAmount.toFixed(6), 6);
 
       console.log(`[tournament-distribute-prizes] Paying place ${prize.place}: ${formatUnits(usdcWei, 6)} USDC to ${winnerWallet}`);
