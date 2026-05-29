@@ -64,7 +64,7 @@ export default function OnboardingScreen() {
       return;
     }
 
-    const authUserId = user?.magicUserId || user?.privyUserId;
+    const authUserId = user?.authUserId;
     if (!authUserId) {
       setError("Not authenticated. Please log in again.");
       return;
@@ -101,7 +101,7 @@ export default function OnboardingScreen() {
         username: username.trim(),
         email: user.email,
         avatar_index: selectedAvatar,
-        privy_user_id: authUserId,
+        auth_user_id: authUserId,
         embedded_wallet_address: address || "",
         active_wallet_type: "embedded",
       } as never);

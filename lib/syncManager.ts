@@ -320,7 +320,7 @@ class SyncManagerService {
           event: "*",
           schema: "public",
           table: "profiles",
-          filter: `privy_user_id=eq.${userId}`,
+          filter: `auth_user_id=eq.${userId}`,
         },
         (payload) => {
           SyncLogger.debug("profile_sync", "Real-time profile update received", {

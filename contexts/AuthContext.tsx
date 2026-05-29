@@ -91,7 +91,7 @@ function generateUsername(email: string | null): string {
 
 const GUEST_PROFILE: Profile = {
   id: "guest_user",
-  privy_user_id: "guest_user",
+  auth_user_id: "guest_user",
   username: "Guest",
   email: null,
   avatar_index: 0,
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("privy_user_id", authUserId)
+        .eq("auth_user_id", authUserId)
         .single();
       if (error && error.code !== "PGRST116") {
         logger.error("Auth", "Error fetching profile", { error: error.message });
@@ -182,7 +182,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isSupabaseConfigured) return null;
     try {
       const newProfile: ProfileInsert = {
-        privy_user_id: params.magicUserId, // stores supabase auth user id
+        auth_user_id: params.authUserId,
         username: params.username,
         email: params.email,
         embedded_wallet_address: params.embeddedWalletAddress,
@@ -248,7 +248,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const syncProfileToStore = useCallback((profile: Profile) => {
     const userStoreProfile = {
       id: profile.id,
-      privyUserId: profile.privy_user_id,
+      authUserId: profile.auth_user_id,
       username: profile.username,
       email: profile.email,
       avatarIndex: profile.avatar_index,
@@ -298,7 +298,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (!profile) {
         profile = await createProfile({
-          magicUserId: authUserId,
+          authUserId,
           email,
           username: generateUsername(email),
           embeddedWalletAddress: "",
@@ -323,7 +323,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const authUser: AuthUser = {
         id: profile.id,
-        magicUserId: authUserId,
+        authUserId,
         email,
         username: profile.username,
         walletAddress: profile.embedded_wallet_address || null,

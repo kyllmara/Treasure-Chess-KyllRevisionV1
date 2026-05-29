@@ -9,7 +9,7 @@ export type AuthState = {
   user: {
     id: string;
     email: string | null;
-    privyUserId: string;
+    authUserId: string;
   } | null;
   profile: Profile | null;
   walletAddress: string | null;

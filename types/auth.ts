@@ -50,19 +50,17 @@ export type WalletType =
   | "external";     // External wallet via WalletConnect
 
 /**
- * Magic Link user representation
+ * Legacy Magic Link user representation — kept for interface compatibility, always null.
+ * @deprecated Supabase Auth is the only auth system in use.
  */
 export interface MagicUser {
-  /** Magic issuer ID (unique user identifier) */
   issuer: string;
-  /** User's email if available */
   email: string | null;
-  /** User's embedded wallet address */
   publicAddress: string | null;
 }
 
 /**
- * @deprecated Use MagicUser instead - kept for backwards compatibility
+ * @deprecated Kept for backwards compatibility — never populated.
  */
 export interface PrivyUser {
   id: string;
@@ -134,10 +132,8 @@ export interface WalletAccount {
 export interface AuthUser {
   /** Internal user ID (from Supabase profile) */
   id: string;
-  /** Magic Link user ID (issuer) */
-  magicUserId: string;
-  /** @deprecated Use magicUserId instead */
-  privyUserId?: string;
+  /** Supabase Auth UUID (session.user.id) */
+  authUserId: string;
   /** User's email if available */
   email: string | null;
   /** Username for display */
@@ -157,10 +153,10 @@ export interface AuthState {
   /** Current authentication mode */
   mode: AuthMode;
 
-  /** Whether Magic Link SDK has initialized */
+  /** Always true — kept for interface compatibility with Supabase Auth */
   isMagicReady: boolean;
 
-  /** @deprecated Use isMagicReady instead */
+  /** @deprecated Use isMagicReady */
   isPrivyReady?: boolean;
 
   /** Whether auth state is being loaded */
@@ -298,8 +294,6 @@ export type AuthErrorCode =
   | "PROFILE_CREATE_FAILED"
   | "PROFILE_UPDATE_FAILED"
   | "LOGOUT_FAILED"
-  | "MAGIC_NOT_READY"
-  | "PRIVY_NOT_READY"  // Kept for backwards compatibility
   | "RATE_LIMIT_EXCEEDED"
   | "NETWORK_ERROR"
   | "UNKNOWN_ERROR";
@@ -380,9 +374,7 @@ export interface GuestProfile {
  * Profile creation params for new users
  */
 export interface CreateProfileParams {
-  magicUserId: string;
-  /** @deprecated Use magicUserId instead */
-  privyUserId?: string;
+  authUserId: string;
   email: string | null;
   username: string;
   embeddedWalletAddress: string;

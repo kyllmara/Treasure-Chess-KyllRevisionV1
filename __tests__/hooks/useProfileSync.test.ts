@@ -100,7 +100,7 @@ jest.spyOn(AppState, "addEventListener").mockImplementation(mockAddEventListener
 
 const mockProfile = {
   id: "profile-123",
-  privyUserId: "privy-456",
+  authUserId: "privy-456",
   username: "TestPlayer",
   email: "test@example.com",
   avatarIndex: 3,
@@ -157,7 +157,7 @@ describe.skip("useProfileSync", () => {
     // Default mock implementations
     mockUseAuth.mockReturnValue({
       profile: mockProfile,
-      privyUser: { id: "privy-456" },
+      user: { authUserId: "privy-456" },
       isAuthenticated: true,
     });
 
@@ -181,14 +181,14 @@ describe.skip("useProfileSync", () => {
       const { result } = renderHook(() => useProfileSync());
 
       await waitFor(() => {
-        expect(mockInitialize).toHaveBeenCalledWith("privy-456");
+        expect(mockInitialize).toHaveBeenCalledWith("privy-456");  // authUserId value
       });
     });
 
     it("should not initialize when not authenticated", async () => {
       mockUseAuth.mockReturnValue({
         profile: null,
-        privyUser: null,
+        user: null,
         isAuthenticated: false,
       });
 

@@ -85,7 +85,7 @@ export function SyncStatusProvider({
   children,
   onError,
 }: SyncStatusProviderProps) {
-  const { isAuthenticated, user, privyUser } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const previousAuthState = useRef<boolean>(false);
 
   // State
@@ -97,7 +97,7 @@ export function SyncStatusProvider({
   // --------------------------------------------------------------------------
 
   useEffect(() => {
-    const userId = privyUser?.id || user?.privyUserId;
+    const userId = user?.authUserId;
 
     async function init() {
       await SyncManager.initialize(userId);
@@ -118,7 +118,7 @@ export function SyncStatusProvider({
     const wasAuthenticated = previousAuthState.current;
     previousAuthState.current = isAuthenticated;
 
-    const userId = privyUser?.id || user?.privyUserId;
+    const userId = user?.authUserId;
 
     if (!wasAuthenticated && isAuthenticated && userId) {
       // User logged in - trigger sync
@@ -127,7 +127,7 @@ export function SyncStatusProvider({
       // User logged out - cleanup
       SyncManager.onLogout();
     }
-  }, [isAuthenticated, user?.privyUserId, privyUser?.id]);
+  }, [isAuthenticated, user?.authUserId]);
 
   // --------------------------------------------------------------------------
   // Subscribe to SyncManager

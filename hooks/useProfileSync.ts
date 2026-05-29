@@ -69,7 +69,7 @@ const ELO_CHANGE_DISPLAY_DURATION = 5000; // 5 seconds to show ELO change
 // ============================================================================
 
 export function useProfileSync(): ProfileSyncHookResult {
-  const { profile: authProfile, privyUser, isAuthenticated } = useAuth();
+  const { profile: authProfile, user, isAuthenticated } = useAuth();
   const userStore = useUserStore();
 
   // Local state
@@ -94,7 +94,7 @@ export function useProfileSync(): ProfileSyncHookResult {
 
   useEffect(() => {
     async function initialize() {
-      if (!isAuthenticated || !privyUser?.id || isInitialized.current) {
+      if (!isAuthenticated || !user?.authUserId || isInitialized.current) {
         return;
       }
 
@@ -149,7 +149,7 @@ export function useProfileSync(): ProfileSyncHookResult {
       });
 
       // Initialize the service
-      const initialProfile = await profileSyncService.initialize(privyUser.id);
+      const initialProfile = await profileSyncService.initialize(user.authUserId);
 
       if (initialProfile) {
         setProfile(initialProfile);
@@ -171,7 +171,7 @@ export function useProfileSync(): ProfileSyncHookResult {
     return () => {
       cleanup?.then((fn) => fn?.());
     };
-  }, [isAuthenticated, privyUser?.id]);
+  }, [isAuthenticated, user?.authUserId]);
 
   // --------------------------------------------------------------------------
   // AppState handling for background sync

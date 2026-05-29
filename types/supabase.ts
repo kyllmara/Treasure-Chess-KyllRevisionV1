@@ -1658,7 +1658,7 @@ export type Database = {
           magic_user_id: string | null
           music_enabled: boolean
           notifications_enabled: boolean
-          privy_user_id: string | null
+          auth_user_id: string | null
           profile_picture_url: string | null
           push_token: string | null
           smart_wallet_address: string | null
@@ -1701,7 +1701,7 @@ export type Database = {
           magic_user_id?: string | null
           music_enabled?: boolean
           notifications_enabled?: boolean
-          privy_user_id?: string | null
+          auth_user_id?: string | null
           profile_picture_url?: string | null
           push_token?: string | null
           smart_wallet_address?: string | null
@@ -1744,7 +1744,7 @@ export type Database = {
           magic_user_id?: string | null
           music_enabled?: boolean
           notifications_enabled?: boolean
-          privy_user_id?: string | null
+          auth_user_id?: string | null
           profile_picture_url?: string | null
           push_token?: string | null
           smart_wallet_address?: string | null
@@ -5331,7 +5331,7 @@ export type Database = {
           magic_user_id: string | null
           music_enabled: boolean
           notifications_enabled: boolean
-          privy_user_id: string | null
+          auth_user_id: string | null
           profile_picture_url: string | null
           push_token: string | null
           smart_wallet_address: string | null

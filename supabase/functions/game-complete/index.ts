@@ -323,11 +323,10 @@ Deno.serve(async (req) => {
           if (payload.role === "service_role") {
             callerUserId = "service_role";
           } else if (payload.sub) {
-            // Look up profile by privy_user_id = sub (Supabase Auth UUID)
             const { data: callerProfile } = await supabase
               .from("profiles")
               .select("id")
-              .eq("privy_user_id", payload.sub)
+              .eq("auth_user_id", payload.sub)
               .single();
             callerUserId = callerProfile?.id ?? null;
           }

@@ -8,7 +8,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 // App-side user profile (maps from Supabase profile + balance)
 export interface UserProfile {
   id: string;
-  privyUserId: string;
+  authUserId: string;
   username: string;
   email: string | null;
   avatarIndex: number;
@@ -85,7 +85,7 @@ interface UserState {
   logout: () => void;
 
   // Supabase sync
-  fetchProfile: (privyUserId: string) => Promise<UserProfile | null>;
+  fetchProfile: (authUserId: string) => Promise<UserProfile | null>;
   createProfile: (data: CreateProfileData) => Promise<UserProfile | null>;
   syncProfileToSupabase: (updates: Partial<ProfileUpdate>) => Promise<boolean>;
   syncWithServer: () => Promise<void>;
@@ -115,7 +115,7 @@ interface UserState {
 }
 
 export interface CreateProfileData {
-  privyUserId: string;
+  authUserId: string;
   username: string;
   avatarIndex: number;
   embeddedWalletAddress: string;
@@ -136,7 +136,7 @@ const defaultSettings: GameSettings = {
 function mapSupabaseToUserProfile(profile: Profile, balance?: Balance): UserProfile {
   return {
     id: profile.id,
-    privyUserId: profile.privy_user_id,
+    authUserId: profile.auth_user_id,
     username: profile.username,
     email: profile.email,
     avatarIndex: profile.avatar_index,
@@ -208,8 +208,7 @@ export const useUserStore = create<UserState>()(
           isAuthenticated: false,
         }),
 
-      // Fetch profile from Supabase by Privy user ID
-      fetchProfile: async (privyUserId: string): Promise<UserProfile | null> => {
+      fetchProfile: async (authUserId: string): Promise<UserProfile | null> => {
         if (!isSupabaseConfigured) {
           console.warn("Supabase not configured, skipping profile fetch");
           return null;
@@ -222,7 +221,7 @@ export const useUserStore = create<UserState>()(
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
             .select("*")
-            .eq("privy_user_id", privyUserId)
+            .eq("auth_user_id", authUserId)
             .single();
 
           if (profileError) {
@@ -277,7 +276,7 @@ export const useUserStore = create<UserState>()(
         try {
           // Insert profile
           const insertData: ProfileInsert = {
-            privy_user_id: data.privyUserId,
+            auth_user_id: data.authUserId,
             username: data.username,
             avatar_index: data.avatarIndex,
             embedded_wallet_address: data.embeddedWalletAddress,
@@ -577,7 +576,7 @@ export const useUserStore = create<UserState>()(
         const { profile, fetchProfile } = get();
         if (!profile) return;
 
-        await fetchProfile(profile.privyUserId);
+        await fetchProfile(profile.authUserId);
       },
 
       pushToServer: async (updates: Partial<UserProfile>): Promise<boolean> => {

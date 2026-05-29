@@ -393,7 +393,7 @@ describe("GUEST_PROFILE constant", () => {
   it("should have correct structure", () => {
     expect(GUEST_PROFILE).toMatchObject({
       id: "guest_user",
-      privy_user_id: "guest_user",
+      auth_user_id: "guest_user",
       username: "Guest",
       email: null,
       avatar_index: 0,

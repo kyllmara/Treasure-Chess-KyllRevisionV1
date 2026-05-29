@@ -75,7 +75,7 @@ jest.mock("@/contexts/AuthContext", () => ({
   useAuth: jest.fn(() => ({
     isAuthenticated: false,
     user: null,
-    privyUser: null,
+    user: null,
   })),
 }));
 
@@ -294,7 +294,7 @@ describe.skip("SyncStatusContext", () => {
       (useAuth as jest.Mock).mockReturnValue({
         isAuthenticated: false,
         user: null,
-        privyUser: null,
+        user: null,
       });
 
       const { rerender } = renderHook(() => useSyncStatus(), { wrapper });
@@ -302,8 +302,8 @@ describe.skip("SyncStatusContext", () => {
       // Simulate login
       (useAuth as jest.Mock).mockReturnValue({
         isAuthenticated: true,
-        user: { privyUserId: "user-123" },
-        privyUser: { id: "privy-user-123" },
+        user: { authUserId: "user-123" },
+        user: { authUserId: "privy-user-123" },
       });
 
       rerender({});
@@ -317,8 +317,8 @@ describe.skip("SyncStatusContext", () => {
       // Setup: user authenticated initially
       (useAuth as jest.Mock).mockReturnValue({
         isAuthenticated: true,
-        user: { privyUserId: "user-123" },
-        privyUser: { id: "privy-user-123" },
+        user: { authUserId: "user-123" },
+        user: { authUserId: "privy-user-123" },
       });
 
       const { rerender } = renderHook(() => useSyncStatus(), { wrapper });
@@ -327,7 +327,7 @@ describe.skip("SyncStatusContext", () => {
       (useAuth as jest.Mock).mockReturnValue({
         isAuthenticated: false,
         user: null,
-        privyUser: null,
+        user: null,
       });
 
       rerender({});

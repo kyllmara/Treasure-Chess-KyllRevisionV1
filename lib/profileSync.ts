@@ -40,7 +40,7 @@ export type BalanceChangeCallback = (balance: SyncableBalance) => void;
 
 export interface SyncableProfile {
   id: string;
-  privyUserId: string;
+  authUserId: string;
   username: string;
   email: string | null;
   avatarIndex: number;
@@ -156,7 +156,7 @@ const CLIENT_MODIFIABLE_FIELDS = new Set([
 function mapProfileToSyncable(profile: Profile): SyncableProfile {
   return {
     id: profile.id,
-    privyUserId: profile.privy_user_id,
+    authUserId: profile.auth_user_id,
     username: profile.username,
     email: profile.email,
     avatarIndex: profile.avatar_index,
@@ -349,7 +349,7 @@ export class ProfileSyncService {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("privy_user_id", this.userId)
+        .eq("auth_user_id", this.userId)
         .single();
 
       if (error) {
@@ -655,7 +655,7 @@ export class ProfileSyncService {
       ...localProfile,
       // Server-authoritative (always from server)
       id: serverProfile.id,
-      privyUserId: serverProfile.privyUserId,
+      authUserId: serverProfile.authUserId,
       eloRating: serverProfile.eloRating,
       gamesPlayed: serverProfile.gamesPlayed,
       gamesWon: serverProfile.gamesWon,

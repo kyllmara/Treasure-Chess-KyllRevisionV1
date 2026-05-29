@@ -97,7 +97,7 @@ jest.mock("@react-native-community/netinfo", () => ({
 
 const mockServerProfile = {
   id: "profile-123",
-  privy_user_id: "privy-456",
+  auth_user_id: "privy-456",
   username: "TestPlayer",
   email: "test@example.com",
   avatar_index: 3,
@@ -124,7 +124,7 @@ const mockServerProfile = {
 
 const mockSyncableProfile: SyncableProfile = {
   id: "profile-123",
-  privyUserId: "privy-456",
+  authUserId: "privy-456",
   username: "TestPlayer",
   email: "test@example.com",
   avatarIndex: 3,
