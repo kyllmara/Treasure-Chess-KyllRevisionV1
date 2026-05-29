@@ -76,7 +76,12 @@ $$;
 GRANT EXECUTE ON FUNCTION get_current_user_profile_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_current_user_profile_id() TO anon;
 
--- 8. Drop the old column now that all policies and functions are updated
+-- 8. Drop privy_user_id — all policies and functions updated above
 ALTER TABLE profiles DROP COLUMN IF EXISTS privy_user_id;
+
+-- 9. Drop magic_user_id — created by 014_magic_auth_migration.sql for Magic SDK,
+--    never populated since switching to Supabase Auth. No current code reads or writes it.
+DROP INDEX IF EXISTS idx_profiles_magic_user_id;
+ALTER TABLE profiles DROP COLUMN IF EXISTS magic_user_id;
 
 COMMIT;

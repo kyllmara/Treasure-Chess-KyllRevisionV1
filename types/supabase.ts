@@ -1655,7 +1655,6 @@ export type Database = {
           is_suspended: boolean
           last_seen_at: string
           longest_streak: number
-          magic_user_id: string | null
           music_enabled: boolean
           notifications_enabled: boolean
           auth_user_id: string | null
@@ -1698,7 +1697,6 @@ export type Database = {
           is_suspended?: boolean
           last_seen_at?: string
           longest_streak?: number
-          magic_user_id?: string | null
           music_enabled?: boolean
           notifications_enabled?: boolean
           auth_user_id?: string | null
@@ -1741,7 +1739,6 @@ export type Database = {
           is_suspended?: boolean
           last_seen_at?: string
           longest_streak?: number
-          magic_user_id?: string | null
           music_enabled?: boolean
           notifications_enabled?: boolean
           auth_user_id?: string | null
@@ -5328,7 +5325,6 @@ export type Database = {
           is_suspended: boolean
           last_seen_at: string
           longest_streak: number
-          magic_user_id: string | null
           music_enabled: boolean
           notifications_enabled: boolean
           auth_user_id: string | null

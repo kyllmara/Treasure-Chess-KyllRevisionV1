@@ -203,7 +203,7 @@ describe("AuthContext", () => {
       expect(result.current.otpEmail).toBeNull();
     });
 
-    it.skip("sendOTP should throw error when Privy not configured", async () => {
+    it.skip("sendOTP should throw error when Supabase not configured", async () => {
       const { result } = await renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
@@ -213,11 +213,11 @@ describe("AuthContext", () => {
       await expect(
         result.current.sendOTP({ email: "test@example.com" })
       ).rejects.toMatchObject({
-        code: "PRIVY_NOT_READY",
+        code: "OTP_SEND_FAILED",
       });
     });
 
-    it.skip("verifyOTP should throw error when Privy not configured", async () => {
+    it.skip("verifyOTP should throw error when Supabase not configured", async () => {
       const { result } = await renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
@@ -225,7 +225,7 @@ describe("AuthContext", () => {
       });
 
       await expect(result.current.verifyOTP({ code: "123456" })).rejects.toMatchObject({
-        code: "PRIVY_NOT_READY",
+        code: "INVALID_OTP",
       });
     });
 
