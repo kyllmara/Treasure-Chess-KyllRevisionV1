@@ -40,9 +40,8 @@ import { useChallengeStore } from "@/stores/challengeStore";
 import { suppressedChallengeIdRef } from "@/components/ChallengeNotificationListener";
 import { useAuthStore } from "@/stores/authStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { useBiconomyWallet } from "@/hooks/useBiconomyWallet";
 import { AudioManager } from "@/lib/audio";
-import { tctToUsdc } from "@/lib/relay";
+import { tctToUsdc } from "@/lib/tct";
 import { supabase } from "@/lib/supabase";
 
 // ============================================================================
@@ -84,37 +83,22 @@ export default function CreateChallengeScreen() {
     rejoin?: string;
     source?: string;
   }>();
-  const { user, profile, walletProvider } = useAuthStore();
+  const { user } = useAuthStore();
 
-  // Get TCT balance from Biconomy wallet (on-chain USDC converted to TCT)
-  const {
-    tctBalance,
-    isInitialized: isWalletInitialized,
-    isInitializing: isWalletInitializing,
-    hasEnoughTctBalance,
-    tctToUsdc: convertTctToUsdc,
-  } = useBiconomyWallet();
-
-  // Fallback to wallet store if Biconomy not initialized
   const { tctBalance: storeTctBalance } = useWalletStore();
-  const effectiveTctBalance = isWalletInitialized ? tctBalance : storeTctBalance;
 
   const {
     pendingSettings,
     updatePendingSettings,
-    createOnChainChallenge,
     createPublicChallenge,
     createPrivateChallenge,
     cancelChallenge,
     markReady,
     unmarkReady,
     leaveLobbyAsOpponent,
-    initializeBiconomy,
     currentChallenge,
     currentRoomCode,
-    currentOnChainGameId,
     isCreating,
-    isOnChainPending,
     error,
     joinedGameId,
     clearError,
@@ -153,8 +137,8 @@ export default function CreateChallengeScreen() {
   const opponentJoined = !!currentChallenge?.opponent_id;
   const bothReady = creatorReady && opponentReady;
 
-  // Only lock UI when both ready AND actively processing (no error)
-  const isGameStarting = bothReady && isOnChainPending && !error;
+  // Only lock UI when both ready AND actively creating (no error)
+  const isGameStarting = bothReady && isCreating && !error;
 
   // Get usernames
   const creatorUsername = (currentChallenge as any)?.creator?.username || "Creator";
@@ -175,19 +159,12 @@ export default function CreateChallengeScreen() {
     };
   }, [step, currentChallenge?.id]);
 
-  // Initialize store and Biconomy
+  // Initialize store
   useEffect(() => {
     if (user?.id) {
       initialize(user.id);
     }
   }, [user?.id, initialize]);
-
-  // Initialize Biconomy when wallet provider is available
-  useEffect(() => {
-    if (walletProvider && user?.id) {
-      initializeBiconomy(walletProvider);
-    }
-  }, [walletProvider, user?.id, initializeBiconomy]);
 
   // Load challenge data if coming from direct challenge or rejoin
   useEffect(() => {
@@ -335,7 +312,7 @@ export default function CreateChallengeScreen() {
           const bothNowReady = updated.creator_ready && updated.opponent_ready;
 
           // Only trigger escrow flow if challenge is still pending (not already accepted)
-          if (bothNowReady && iAmReady && !escrowFlowTriggeredRef.current && !isOnChainPending && updated.status === 'pending') {
+          if (bothNowReady && iAmReady && !escrowFlowTriggeredRef.current && !isCreating && updated.status === 'pending') {
             console.log("[CreateChallenge] Both ready detected via realtime! Triggering escrow flow...");
             escrowFlowTriggeredRef.current = true;
 
@@ -367,7 +344,7 @@ export default function CreateChallengeScreen() {
       subscription.untrack();
       subscription.unsubscribe();
     };
-  }, [currentChallenge?.id, step, setCurrentChallenge, router, isCreator, isOpponent, markReady, isOnChainPending, user?.id, makePublic, deleteDeclinedChallenge, resetState]);
+  }, [currentChallenge?.id, step, setCurrentChallenge, router, isCreator, isOpponent, markReady, isCreating, user?.id, makePublic, deleteDeclinedChallenge, resetState]);
 
   // Handlers
   const handleWagerSelect = useCallback(
@@ -434,52 +411,30 @@ export default function CreateChallengeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     AudioManager?.play("chipStack");
 
-    // For wager games, use on-chain escrow
-    if (pendingSettings.wagerAmount > 0) {
-      // Check wallet is initialized
-      if (!isWalletInitialized) {
-        Alert.alert(
-          "Wallet Not Ready",
-          "Please wait for your wallet to initialize before creating a wager game.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
+    // Check balance for wager games
+    if (pendingSettings.wagerAmount > 0 && storeTctBalance < pendingSettings.wagerAmount) {
+      Alert.alert(
+        "Insufficient Balance",
+        `You need ${pendingSettings.wagerAmount} TCT to create this challenge.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
 
-      // Check balance
-      if (!hasEnoughTctBalance(pendingSettings.wagerAmount)) {
-        Alert.alert(
-          "Insufficient Balance",
-          `You need ${pendingSettings.wagerAmount} TCT (${tctToUsdc(pendingSettings.wagerAmount).toFixed(2)} USDC) to create this challenge.`,
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      // Use on-chain challenge creation
-      const result = await createOnChainChallenge(pendingSettings.isPublic);
-      if (result) {
-        setStep("waiting");
-      }
+    let result;
+    if (pendingSettings.isPublic) {
+      result = await createPublicChallenge();
     } else {
-      // Free games use standard flow (no on-chain escrow)
-      let result;
-      if (pendingSettings.isPublic) {
-        result = await createPublicChallenge();
-      } else {
-        result = await createPrivateChallenge();
-      }
+      result = await createPrivateChallenge();
+    }
 
-      if (result) {
-        setStep("waiting");
-      }
+    if (result) {
+      setStep("waiting");
     }
   }, [
     pendingSettings.isPublic,
     pendingSettings.wagerAmount,
-    isWalletInitialized,
-    hasEnoughTctBalance,
-    createOnChainChallenge,
+    storeTctBalance,
     createPublicChallenge,
     createPrivateChallenge,
   ]);
@@ -678,10 +633,9 @@ export default function CreateChallengeScreen() {
   // Check wager eligibility
   const canWager =
     pendingSettings.wagerAmount === 0 ||
-    effectiveTctBalance >= pendingSettings.wagerAmount;
+    storeTctBalance >= pendingSettings.wagerAmount;
 
-  // Show loading state for on-chain transactions
-  const isProcessing = isCreating || isOnChainPending;
+  const isProcessing = isCreating;
 
   // Render settings step
   const renderSettings = () => (
@@ -697,7 +651,7 @@ export default function CreateChallengeScreen() {
           <Text style={styles.sectionTitle}>Stake Amount (TCT)</Text>
           <View style={styles.balanceBadge}>
             <Text style={styles.balanceText}>
-              {isWalletInitializing ? "Loading..." : `Balance: ${effectiveTctBalance.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+              {`Balance: ${storeTctBalance.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
             </Text>
           </View>
         </View>
@@ -712,7 +666,7 @@ export default function CreateChallengeScreen() {
         <View style={styles.wagerGrid}>
           {WAGER_OPTIONS.map((amount) => {
             const isSelected = pendingSettings.wagerAmount === amount && !customWagerInput;
-            const canAfford = effectiveTctBalance >= amount;
+            const canAfford = storeTctBalance >= amount;
 
             return (
               <TouchableOpacity
@@ -763,9 +717,9 @@ export default function CreateChallengeScreen() {
             />
             <Text style={styles.customWagerSuffix}>TCT</Text>
           </View>
-          {customWagerInput && parseInt(customWagerInput, 10) > effectiveTctBalance && (
+          {customWagerInput && parseInt(customWagerInput, 10) > storeTctBalance && (
             <Text style={styles.customWagerWarning}>
-              Exceeds your balance of {effectiveTctBalance.toLocaleString()} TCT
+              Exceeds your balance of {storeTctBalance.toLocaleString()} TCT
             </Text>
           )}
         </View>
@@ -1062,9 +1016,9 @@ export default function CreateChallengeScreen() {
       {/* Ready Button - Show when opponent has joined and I'm not ready yet */}
       {opponentJoined && !amIReady && !bothReady && (
         <TouchableOpacity
-          style={[styles.readyButton, (isLockingFunds || isOnChainPending) && styles.readyButtonDisabled]}
+          style={[styles.readyButton, (isLockingFunds || isCreating) && styles.readyButtonDisabled]}
           onPress={handleReadyUp}
-          disabled={isLockingFunds || isOnChainPending}
+          disabled={isLockingFunds || isCreating}
         >
           <LinearGradient
             colors={["#4ECDC4", "#45B7AA"]}
@@ -1072,7 +1026,7 @@ export default function CreateChallengeScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.readyButtonGradient}
           >
-            {isLockingFunds || isOnChainPending ? (
+            {isLockingFunds || isCreating ? (
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <>

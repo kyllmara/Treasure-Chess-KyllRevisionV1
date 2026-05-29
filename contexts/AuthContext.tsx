@@ -132,7 +132,6 @@ const initialState: AuthState = {
   error: null,
   otpState: "idle",
   otpEmail: null,
-  walletProvider: null, // Kept for interface compatibility — always null
 };
 
 // ============================================================================
@@ -346,7 +345,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
         otpState: "success",
         otpEmail: null,
-        walletProvider: null,
       }));
 
       setOtpEmail(null);
@@ -362,7 +360,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isGuest: true,
         profile: GUEST_PROFILE,
         error: createAuthError("PROFILE_FETCH_FAILED", "Login succeeded but profile could not be loaded. Please try again."),
-        walletProvider: null,
       });
     } finally {
       profileSyncInProgress.current = false;
@@ -391,7 +388,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           isLoading: false,
           isGuest: true,
           profile: GUEST_PROFILE,
-          walletProvider: null,
         });
       } else if (event === "TOKEN_REFRESHED") {
         logger.debug("Auth", "Token refreshed");
@@ -407,7 +403,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isLoading: false,
             isGuest: true,
             profile: GUEST_PROFILE,
-            walletProvider: null,
           });
         }
       }

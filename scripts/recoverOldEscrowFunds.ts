@@ -32,32 +32,10 @@ const CANCEL_SCRIPT = `
   console.log("Game ID:", GAME_ID);
   console.log("");
 
-  // Import the relay SDK (should be available in app context)
-  const { getRelaySDK } = await import('@/lib/relay');
-  const sdk = getRelaySDK();
-
-  if (!sdk.isInitialized()) {
-    console.error("SDK not initialized! Please make sure you're logged in.");
-    return;
-  }
-
-  console.log("Wallet address:", sdk.getAddress());
-  console.log("");
-  console.log("Calling cancelGameOnOldEscrow...");
-
-  try {
-    const result = await sdk.cancelGameOnOldEscrow(GAME_ID);
-
-    if (result.success) {
-      console.log("✅ SUCCESS! Game cancelled.");
-      console.log("Transaction hash:", result.txHash);
-      console.log("Your 1 USDC has been returned to your wallet!");
-    } else {
-      console.error("❌ Failed:", result.error);
-    }
-  } catch (error) {
-    console.error("❌ Error:", error.message || error);
-  }
+  // NOTE: lib/relay has been removed. This script is obsolete.
+  // The relay SDK and on-chain escrow recovery are no longer available.
+  console.error("This recovery script is no longer functional. lib/relay has been removed.");
+  console.error("Contact support to recover any stuck escrow funds via the platform admin.");
 })();
 `;
 

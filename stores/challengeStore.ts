@@ -20,11 +20,6 @@ import {
 } from "@/lib/challenges";
 import { supabase } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { getRelaySDK, tctToUsdc, type RelayResponse } from "@/lib/relay";
-import { ethers } from "ethers";
-
-// Alias for backward compatibility
-type TransactionResult = RelayResponse;
 
 // ============================================================================
 // Types
@@ -52,9 +47,6 @@ export interface ChallengeStoreState {
   currentChallenge: Challenge | null;
   currentRoomCode: string | null;
 
-  // On-chain game ID (bytes32)
-  currentOnChainGameId: string | null;
-
   // Pending challenge creation settings
   pendingSettings: ChallengeSettings;
 
@@ -62,7 +54,6 @@ export interface ChallengeStoreState {
   isLoading: boolean;
   isCreating: boolean;
   isJoining: boolean;
-  isOnChainPending: boolean; // Waiting for on-chain tx
   error: string | null;
 
   // Result
@@ -73,28 +64,22 @@ export interface ChallengeStoreState {
   _service: ChallengeService | null;
   _myChallengesSubscription: RealtimeChannel | null;
   _publicSubscription: RealtimeChannel | null;
-  _biconomyInitialized: boolean;
 }
 
 export interface ChallengeStoreActions {
   // Initialization
   initialize: (userId: string) => void;
-  initializeBiconomy: (walletProvider: any) => Promise<boolean>;
   cleanup: () => void;
 
-  // Challenge creation (with on-chain escrow)
+  // Challenge creation
   updatePendingSettings: (settings: Partial<ChallengeSettings>) => void;
   createPublicChallenge: () => Promise<Challenge | null>;
   createPrivateChallenge: () => Promise<{ challenge: Challenge; roomCode: string } | null>;
   createChallengeWithSettings: (settings: ChallengeSettings) => Promise<Challenge | null>;
 
-  // On-chain challenge creation (creates escrow first, then DB record)
-  createOnChainChallenge: (isPublic: boolean) => Promise<{ challenge: Challenge; onChainGameId: string } | null>;
-
-  // Challenge joining (with on-chain escrow)
+  // Challenge joining
   joinByRoomCode: (roomCode: string) => Promise<boolean>;
   joinChallenge: (challengeId: string) => Promise<boolean>;
-  joinOnChainChallenge: (challengeId: string, onChainGameId: string) => Promise<{ success: boolean; gameId?: string; error?: string }>;
   searchByCode: (roomCode: string) => Promise<Challenge | null>;
 
   // Mark player as ready in lobby (triggers fund lock when both ready)
@@ -104,7 +89,6 @@ export interface ChallengeStoreActions {
 
   // Challenge management
   cancelChallenge: (challengeId?: string) => Promise<boolean>;
-  cancelOnChainChallenge: (challengeId?: string, onChainGameId?: string) => Promise<boolean>;
   declineChallenge: (challengeId: string) => Promise<boolean>;
   makePublic: (challengeId: string) => Promise<boolean>;
   deleteDeclinedChallenge: (challengeId: string) => Promise<boolean>;
@@ -139,7 +123,7 @@ const DEFAULT_SETTINGS: ChallengeSettings = {
 
 const initialState: Omit<
   ChallengeStoreState,
-  "_userId" | "_service" | "_myChallengesSubscription" | "_publicSubscription" | "_biconomyInitialized"
+  "_userId" | "_service" | "_myChallengesSubscription" | "_publicSubscription"
 > = {
   myCreatedChallenges: [],
   myReceivedChallenges: [],
@@ -147,12 +131,10 @@ const initialState: Omit<
   boardFilters: {},
   currentChallenge: null,
   currentRoomCode: null,
-  currentOnChainGameId: null,
   pendingSettings: { ...DEFAULT_SETTINGS },
   isLoading: false,
   isCreating: false,
   isJoining: false,
-  isOnChainPending: false,
   error: null,
   joinedGameId: null,
 };
@@ -169,7 +151,6 @@ export const useChallengeStore = create<ChallengeStore>()(
     _service: null,
     _myChallengesSubscription: null,
     _publicSubscription: null,
-    _biconomyInitialized: false,
 
     // --------------------------------------------------------------------------
     // Initialization
@@ -276,31 +257,6 @@ export const useChallengeStore = create<ChallengeStore>()(
     },
 
     // --------------------------------------------------------------------------
-    // Biconomy Initialization
-    // --------------------------------------------------------------------------
-
-    initializeBiconomy: async (walletProvider: any) => {
-      const state = get();
-      if (state._biconomyInitialized) return true;
-
-      try {
-        const sdk = getRelaySDK();
-        // Check if SDK is already initialized (from AuthContext pre-initialization)
-        if (sdk.isInitialized()) {
-          console.log("[ChallengeStore] Relay SDK already initialized, syncing state");
-        } else {
-          await sdk.initialize(walletProvider);
-          console.log("[ChallengeStore] Relay SDK initialized");
-        }
-        set({ _biconomyInitialized: true });
-        return true;
-      } catch (error) {
-        console.error("[ChallengeStore] Failed to initialize Relay SDK:", error);
-        return false;
-      }
-    },
-
-    // --------------------------------------------------------------------------
     // Challenge Creation
     // --------------------------------------------------------------------------
 
@@ -308,90 +264,6 @@ export const useChallengeStore = create<ChallengeStore>()(
       set((prev) => ({
         pendingSettings: { ...prev.pendingSettings, ...settings },
       }));
-    },
-
-    // --------------------------------------------------------------------------
-    // On-Chain Challenge Creation (NEW - with smart contract escrow)
-    // --------------------------------------------------------------------------
-
-    createOnChainChallenge: async (isPublic: boolean) => {
-      const state = get();
-      if (!state._service || !state._userId) {
-        set({ error: "Not authenticated" });
-        return null;
-      }
-
-      if (!state._biconomyInitialized) {
-        set({ error: "Wallet not connected" });
-        return null;
-      }
-
-      set({ isCreating: true, error: null });
-
-      try {
-        // Generate unique game ID for on-chain (will be used when opponent joins)
-        const gameId = `${state._userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const gameIdBytes = ethers.id(gameId);
-
-        // Convert TCT wager to USDC
-        const wagerTct = state.pendingSettings.wagerAmount;
-        const wagerUsdc = tctToUsdc(wagerTct).toFixed(6);
-
-        console.log("[ChallengeStore] Creating challenge (NO on-chain tx yet):", {
-          gameId,
-          gameIdBytes,
-          wagerTct,
-          wagerUsdc,
-        });
-
-        // NEW FLOW: Only create database record, NO on-chain transaction
-        // Funds will be locked when opponent accepts and both players confirm
-        // The on_chain_game_id is stored so we know which game ID to use when creating escrow later
-
-        const challenge = await state._service.createChallenge({
-          creatorId: state._userId,
-          timeControlSeconds: state.pendingSettings.timeControl,
-          incrementSeconds: state.pendingSettings.increment,
-          wagerTct: wagerTct,
-          isPublic: isPublic,
-          isRated: state.pendingSettings.isRated,
-          colorPreference: state.pendingSettings.colorPreference,
-          // Store the game ID bytes - will be used when both players lock funds
-          onChainGameId: wagerTct > 0 ? gameIdBytes : undefined,
-        });
-
-        if (!challenge) {
-          throw new Error("Failed to create challenge record");
-        }
-
-        console.log("[ChallengeStore] Challenge created (funds NOT locked yet):", {
-          id: challenge.id,
-          room_code: challenge.room_code,
-          wager_tct: challenge.wager_tct,
-          on_chain_game_id: gameIdBytes,
-        });
-
-        set((prev) => ({
-          isCreating: false,
-          currentChallenge: challenge,
-          currentRoomCode: challenge.room_code,
-          currentOnChainGameId: wagerTct > 0 ? gameIdBytes : null,
-          myCreatedChallenges: [challenge, ...prev.myCreatedChallenges],
-        }));
-
-        return { challenge, onChainGameId: gameIdBytes };
-      } catch (error) {
-        let message = error instanceof Error ? error.message : "Failed to create challenge";
-        console.error("[ChallengeStore] createOnChainChallenge error:", error);
-
-        // Check for auth errors and provide better messaging
-        if (message.includes("401") || message.includes("JWT") || message.includes("authenticated")) {
-          message = "Session expired. Please log out and log back in to create challenges.";
-        }
-
-        set({ isCreating: false, error: message });
-        return null;
-      }
     },
 
     createPublicChallenge: async () => {
@@ -535,13 +407,7 @@ export const useChallengeStore = create<ChallengeStore>()(
         return { success: false, error: "Not authenticated" };
       }
 
-      // Prevent duplicate calls - if already processing, return early
-      if (state.isOnChainPending) {
-        console.log("[ChallengeStore] markReady already in progress, skipping duplicate call");
-        return { success: false, error: "Already processing" };
-      }
-
-      set({ isOnChainPending: true, error: null });
+      set({ error: null });
 
       try {
         // Get the latest challenge state
@@ -549,7 +415,6 @@ export const useChallengeStore = create<ChallengeStore>()(
         if (!challenge) {
           // Challenge not found - may have been deleted or already completed
           console.log("[ChallengeStore] markReady - challenge not found, may already be accepted/completed");
-          set({ isOnChainPending: false });
           return { success: false, error: "Challenge not found or already completed" };
         }
 
@@ -557,7 +422,6 @@ export const useChallengeStore = create<ChallengeStore>()(
         if (challenge.status === "accepted" && challenge.game_id) {
           console.log("[ChallengeStore] markReady - challenge already accepted, game exists:", challenge.game_id);
           set({
-            isOnChainPending: false,
             joinedGameId: challenge.game_id,
           });
           return {
@@ -570,7 +434,6 @@ export const useChallengeStore = create<ChallengeStore>()(
         // If challenge is cancelled, declined, or expired, return error
         if (challenge.status !== "pending") {
           console.log("[ChallengeStore] markReady - challenge status is not pending:", challenge.status);
-          set({ isOnChainPending: false });
           return { success: false, error: `Challenge is ${challenge.status}` };
         }
 
@@ -579,11 +442,6 @@ export const useChallengeStore = create<ChallengeStore>()(
 
         if (!isCreator && !isOpponent) {
           throw new Error("You are not a participant in this challenge");
-        }
-
-        // For wager challenges, verify wallet is connected
-        if (challenge.wager_tct > 0 && !state._biconomyInitialized) {
-          throw new Error("Wallet not connected");
         }
 
         console.log("[ChallengeStore] Marking ready:", {
@@ -648,25 +506,16 @@ export const useChallengeStore = create<ChallengeStore>()(
           // Not both ready yet - just update local state and return
           console.log("[ChallengeStore] Waiting for other player to ready up");
           set({
-            isOnChainPending: false,
             currentChallenge: updatedChallenge,
           });
           return { success: true, gameStarted: false };
         }
 
         // BOTH PLAYERS ARE READY - Start game immediately!
-        // On-chain escrow will be locked in background (like Play Now flow)
         console.log("[ChallengeStore] Both players ready! Starting game immediately...");
 
-        // For wager games, we'll let online-game.tsx handle background escrow locking
-        // This follows the same pattern as Play Now - game starts immediately,
-        // white player creates escrow, black player polls and joins in background
-        if (challenge.wager_tct > 0) {
-          console.log("[ChallengeStore] Wager game - escrow will be locked in background after game starts");
-        }
-
         // Start the game!
-        console.log("[ChallengeStore] Starting game (escrow will lock in background)...");
+        console.log("[ChallengeStore] Starting game...");
 
         // Start the game from lobby (works for both creator and opponent)
         const acceptResult = await state._service.startGameFromLobby(challengeId);
@@ -681,7 +530,6 @@ export const useChallengeStore = create<ChallengeStore>()(
               // Game was created by the other player, return success
               console.log("[ChallengeStore] Challenge already processed by other player, game exists:", latestChallenge.game_id);
               set({
-                isOnChainPending: false,
                 joinedGameId: latestChallenge.game_id,
               });
               return {
@@ -697,7 +545,6 @@ export const useChallengeStore = create<ChallengeStore>()(
         console.log("[ChallengeStore] Game created:", acceptResult.gameId);
 
         set({
-          isOnChainPending: false,
           joinedGameId: acceptResult.gameId,
         });
 
@@ -709,7 +556,7 @@ export const useChallengeStore = create<ChallengeStore>()(
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to ready up";
         console.error("[ChallengeStore] markReady error:", error);
-        set({ isOnChainPending: false, error: message });
+        set({ error: message });
         return { success: false, error: message };
       }
     },
@@ -796,142 +643,6 @@ export const useChallengeStore = create<ChallengeStore>()(
     // Challenge Joining
     // --------------------------------------------------------------------------
 
-    // --------------------------------------------------------------------------
-    // Join Lobby for On-Chain Challenge (opponent joins the waiting lobby)
-    // --------------------------------------------------------------------------
-
-    joinOnChainChallenge: async (challengeId: string, onChainGameId: string) => {
-      const state = get();
-      if (!state._service || !state._userId) {
-        set({ error: "Not authenticated" });
-        return { success: false, error: "Not authenticated" };
-      }
-
-      set({ isJoining: true, error: null });
-
-      try {
-        console.log("[ChallengeStore] Joining challenge lobby:", {
-          challengeId,
-          onChainGameId,
-        });
-
-        // Get the challenge
-        const challenge = await state._service.getChallengeById(challengeId);
-        if (!challenge) {
-          throw new Error("Challenge not found");
-        }
-
-        // Check if already joined
-        if (challenge.opponent_id === state._userId) {
-          // Already in lobby, return success to navigate to lobby
-          set({
-            isJoining: false,
-            currentChallenge: challenge,
-          });
-          return { success: true, joinedLobby: true, challenge } as any;
-        }
-
-        // Validate challenge is still joinable
-        if (challenge.status !== "pending") {
-          throw new Error("This challenge is no longer available");
-        }
-
-        // Check if someone else already joined
-        if (challenge.opponent_id && challenge.opponent_id !== state._userId) {
-          throw new Error("This challenge already has an opponent");
-        }
-
-        // Join the challenge by setting opponent_id
-        const { error: updateError, data: updateData } = await supabase
-          .from("challenges")
-          .update({
-            opponent_id: state._userId,
-          } as never)
-          .eq("id", challengeId)
-          .eq("status", "pending")
-          .select();
-
-        console.log("[ChallengeStore] Join lobby update result:", { updateError, updateData });
-
-        if (updateError) {
-          console.error("[ChallengeStore] Join lobby update error:", updateError);
-          throw new Error(`Failed to join challenge: ${updateError.message || updateError.code || 'Unknown error'}`);
-        }
-
-        // Check if update actually changed anything (RLS might silently reject)
-        if (!updateData || updateData.length === 0) {
-          console.error("[ChallengeStore] Join lobby update returned no data - RLS may have blocked");
-          throw new Error("Unable to join challenge - it may no longer be available");
-        }
-
-        // Refresh challenge to get updated state
-        const updatedChallenge = await state._service.getChallengeById(challengeId);
-
-        // Notify the creator that an opponent has joined the lobby
-        try {
-          const [creatorResult, opponentResult] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select("push_token, notifications_enabled")
-              .eq("id", challenge.creator_id)
-              .single(),
-            supabase
-              .from("profiles")
-              .select("username")
-              .eq("id", state._userId)
-              .single(),
-          ]);
-
-          const creatorToken = creatorResult.data?.push_token;
-          const notificationsEnabled = creatorResult.data?.notifications_enabled;
-          const opponentUsername = opponentResult.data?.username || "A player";
-
-          if (creatorToken && notificationsEnabled) {
-            await supabase.functions.invoke("send-push-notification", {
-              body: {
-                tokens: [creatorToken],
-                title: "Opponent Joined!",
-                body: `${opponentUsername} has joined your ${challenge.wager_tct} TCT challenge lobby. Ready up to start!`,
-                data: {
-                  type: "opponent_joined_lobby",
-                  challengeId: challengeId,
-                },
-                categoryId: "game_action",
-              },
-            });
-            console.log("[ChallengeStore] Sent push notification to challenge creator");
-          }
-
-          // Insert in-app notification for creator
-          await supabase.from("challenge_notifications").insert({
-            user_id: challenge.creator_id,
-            challenge_id: challengeId,
-            notification_type: "challenge_accepted",
-            title: "Opponent Joined!",
-            body: `${opponentUsername} has joined your challenge lobby. Ready up to start!`,
-            data: { type: "opponent_joined_lobby", challengeId },
-            is_read: false,
-            is_push_sent: !!(creatorToken && notificationsEnabled),
-          } as any);
-        } catch (notifyError) {
-          console.error("[ChallengeStore] Failed to send notification to creator:", notifyError);
-        }
-
-        set({
-          isJoining: false,
-          currentChallenge: updatedChallenge,
-        });
-
-        // Return success with flag to indicate joined lobby (not game started yet)
-        return { success: true, joinedLobby: true, challenge: updatedChallenge } as any;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to join challenge";
-        console.error("[ChallengeStore] joinOnChainChallenge error:", error);
-        set({ isJoining: false, error: message });
-        return { success: false, error: message };
-      }
-    },
-
     joinByRoomCode: async (roomCode: string) => {
       const state = get();
       if (!state._service) {
@@ -942,21 +653,7 @@ export const useChallengeStore = create<ChallengeStore>()(
       set({ isJoining: true, error: null });
 
       try {
-        // First, search for the challenge to get on-chain game ID
-        const challenge = await state._service.getChallengeByCode(roomCode);
-        if (!challenge) {
-          set({ isJoining: false, error: "Challenge not found" });
-          return false;
-        }
-
-        // If challenge has on-chain game ID and wager > 0, use on-chain join
-        if (challenge.on_chain_game_id && challenge.wager_tct > 0) {
-          set({ isJoining: false }); // Reset, joinOnChainChallenge will set it
-          const joinResult = await get().joinOnChainChallenge(challenge.id, challenge.on_chain_game_id);
-          return joinResult.success;
-        }
-
-        // Otherwise, use standard join (free games)
+        // Use standard DB join for all challenges
         const result = await state._service.acceptChallengeByCode(roomCode);
 
         if (result.success) {
@@ -990,21 +687,7 @@ export const useChallengeStore = create<ChallengeStore>()(
       set({ isJoining: true, error: null });
 
       try {
-        // First, get challenge details to check for on-chain game ID
-        const challenge = await state._service.getChallengeById(challengeId);
-        if (!challenge) {
-          set({ isJoining: false, error: "Challenge not found" });
-          return false;
-        }
-
-        // If challenge has on-chain game ID and wager > 0, use on-chain join
-        if (challenge.on_chain_game_id && challenge.wager_tct > 0) {
-          set({ isJoining: false }); // Reset, joinOnChainChallenge will set it
-          const joinResult = await get().joinOnChainChallenge(challenge.id, challenge.on_chain_game_id);
-          return joinResult.success;
-        }
-
-        // Otherwise, use standard join (free games)
+        // Use standard DB join for all challenges
         const result = await state._service.acceptChallengeById(challengeId);
 
         if (result.success) {
@@ -1082,27 +765,7 @@ export const useChallengeStore = create<ChallengeStore>()(
         return false;
       }
 
-      // Check if this challenge has an on-chain game
-      const challenge = state.currentChallenge?.id === idToCancel
-        ? state.currentChallenge
-        : state.myCreatedChallenges.find((c) => c.id === idToCancel);
-
-      console.log("[ChallengeStore] cancelChallenge - checking for on-chain game:", {
-        challengeId: idToCancel,
-        on_chain_game_id: challenge?.on_chain_game_id,
-        wager_tct: challenge?.wager_tct,
-        currentOnChainGameId: state.currentOnChainGameId,
-      });
-
-      // Use currentOnChainGameId as fallback (set during challenge creation)
-      const onChainGameId = challenge?.on_chain_game_id || state.currentOnChainGameId;
-
-      if (onChainGameId && (challenge?.wager_tct ?? 0) > 0) {
-        console.log("[ChallengeStore] Cancelling on-chain challenge:", onChainGameId);
-        return get().cancelOnChainChallenge(idToCancel, onChainGameId);
-      }
-
-      // Standard cancel for free games
+      // Standard cancel via DB
       try {
         const success = await state._service.cancelChallenge(idToCancel);
 
@@ -1119,10 +782,6 @@ export const useChallengeStore = create<ChallengeStore>()(
               prev.currentChallenge?.id === idToCancel
                 ? null
                 : prev.currentRoomCode,
-            currentOnChainGameId:
-              prev.currentChallenge?.id === idToCancel
-                ? null
-                : prev.currentOnChainGameId,
           }));
           return true;
         } else {
@@ -1133,128 +792,6 @@ export const useChallengeStore = create<ChallengeStore>()(
         const message =
           error instanceof Error ? error.message : "Failed to cancel challenge";
         set({ error: message });
-        return false;
-      }
-    },
-
-    cancelOnChainChallenge: async (challengeId?: string, onChainGameId?: string) => {
-      const state = get();
-      if (!state._service) {
-        set({ error: "Not authenticated" });
-        return false;
-      }
-
-      if (!state._biconomyInitialized) {
-        set({ error: "Wallet not connected" });
-        return false;
-      }
-
-      const idToCancel = challengeId || state.currentChallenge?.id;
-      const gameIdToCancel = onChainGameId || state.currentOnChainGameId;
-
-      if (!idToCancel) {
-        set({ error: "No challenge to cancel" });
-        return false;
-      }
-
-      set({ isOnChainPending: true, error: null });
-
-      console.log("[ChallengeStore] cancelOnChainChallenge starting:", {
-        idToCancel,
-        gameIdToCancel,
-      });
-
-      try {
-        // Step 1: Cancel on-chain (refunds USDC)
-        if (gameIdToCancel) {
-          console.log("[ChallengeStore] Calling relay cancelGame for:", gameIdToCancel);
-          const sdk = getRelaySDK();
-
-          // Check if this game is on the old escrow contract
-          // Old escrow: 0x6e24927EFa2B4DB5654331Fb20312C9f59712501
-          // If the challenge was created before the contract update, use old escrow
-          const OLD_ESCROW = "0x6e24927EFa2B4DB5654331Fb20312C9f59712501";
-
-          // Try to get the game from the current escrow first
-          let result;
-          try {
-            const game = await sdk.getOnChainGame(gameIdToCancel);
-            if (game && game.status !== 0) {
-              // Game exists on current escrow
-              result = await sdk.cancelGame(gameIdToCancel);
-            } else {
-              // Game might be on old escrow, try there
-              console.log("[ChallengeStore] Game not found on new escrow, trying old escrow");
-              result = await sdk.cancelGameOnOldEscrow(gameIdToCancel);
-            }
-          } catch {
-            // If getOnChainGame fails, try both escrows
-            console.log("[ChallengeStore] Trying cancel on current escrow...");
-            result = await sdk.cancelGame(gameIdToCancel);
-            if (!result.success) {
-              console.log("[ChallengeStore] Failed on current escrow, trying old escrow...");
-              result = await sdk.cancelGameOnOldEscrow(gameIdToCancel);
-            }
-          }
-
-          console.log("[ChallengeStore] cancelGame result:", result);
-
-          if (!result.success) {
-            throw new Error(result.error || "Failed to cancel on-chain game");
-          }
-
-          console.log("[ChallengeStore] On-chain game cancelled successfully:", result.txHash);
-        } else {
-          console.warn("[ChallengeStore] No gameIdToCancel provided, skipping on-chain cancel");
-        }
-
-        // Step 2: Cancel in database
-        const success = await state._service.cancelChallenge(idToCancel);
-
-        if (success) {
-          set((prev) => ({
-            isOnChainPending: false,
-            myCreatedChallenges: prev.myCreatedChallenges.filter(
-              (c) => c.id !== idToCancel
-            ),
-            currentChallenge:
-              prev.currentChallenge?.id === idToCancel
-                ? null
-                : prev.currentChallenge,
-            currentRoomCode:
-              prev.currentChallenge?.id === idToCancel
-                ? null
-                : prev.currentRoomCode,
-            currentOnChainGameId:
-              prev.currentChallenge?.id === idToCancel
-                ? null
-                : prev.currentOnChainGameId,
-          }));
-          return true;
-        } else {
-          // On-chain cancel succeeded but DB failed - USDC is refunded, just need to update UI
-          set((prev) => ({
-            isOnChainPending: false,
-            myCreatedChallenges: prev.myCreatedChallenges.filter(
-              (c) => c.id !== idToCancel
-            ),
-            currentChallenge: null,
-            currentRoomCode: null,
-            currentOnChainGameId: null,
-            error: "Challenge cancelled on-chain but database update failed",
-          }));
-          return true; // Consider it a success since USDC is refunded
-        }
-      } catch (error) {
-        let message = error instanceof Error ? error.message : "Failed to cancel challenge";
-        console.error("[ChallengeStore] cancelOnChainChallenge error:", error);
-
-        // Check for auth errors and provide better messaging
-        if (message.includes("401") || message.includes("JWT") || message.includes("authenticated")) {
-          message = "Session expired. Please log out and log back in to cancel this challenge.";
-        }
-
-        set({ isOnChainPending: false, error: message });
         return false;
       }
     },
@@ -1332,7 +869,6 @@ export const useChallengeStore = create<ChallengeStore>()(
             ),
             currentChallenge: prev.currentChallenge?.id === challengeId ? null : prev.currentChallenge,
             currentRoomCode: prev.currentChallenge?.id === challengeId ? null : prev.currentRoomCode,
-            currentOnChainGameId: prev.currentChallenge?.id === challengeId ? null : prev.currentOnChainGameId,
           }));
           return true;
         } else {

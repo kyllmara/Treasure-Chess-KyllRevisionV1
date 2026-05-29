@@ -40,9 +40,9 @@ import {
   PLAY_NOW_WAGER_OPTIONS,
 } from "@/stores/playNowStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useBiconomyWallet } from "@/hooks/useBiconomyWallet";
+import { useWalletStore } from "@/stores/walletStore";
 import { AudioManager } from "@/lib/audio";
-import { tctToUsdc } from "@/lib/relay";
+import { tctToUsdc } from "@/lib/tct";
 import { NotificationService } from "@/lib/notifications.native";
 import { supabase } from "@/lib/supabase";
 
@@ -72,15 +72,9 @@ export default function PlayNowScreen() {
     wagerTct?: string;
     autoStart?: string;
   }>();
-  const { user, profile, walletProvider } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
-  // Biconomy wallet
-  const {
-    tctBalance,
-    isInitialized: isWalletInitialized,
-    isInitializing: isWalletInitializing,
-    hasEnoughTctBalance,
-  } = useBiconomyWallet();
+  const { tctBalance: storeTctBalance } = useWalletStore();
 
   // Play Now store
   const {
@@ -96,7 +90,6 @@ export default function PlayNowScreen() {
     updateSettings,
     startSearching,
     cancelSearch,
-    initializeBiconomy,
     initialize,
     clearError,
     clearMatch,
@@ -141,27 +134,20 @@ export default function PlayNowScreen() {
     if (
       params.autoStart === "true" &&
       !hasAutoStarted.current &&
-      isWalletInitialized &&
       user?.id &&
       status === "idle"
     ) {
       hasAutoStarted.current = true;
       // Check if user can afford the wager before auto-starting
       const wager = params.wagerTct ? parseInt(params.wagerTct, 10) : 0;
-      if (wager === 0 || hasEnoughTctBalance(wager)) {
+      if (wager === 0 || storeTctBalance >= wager) {
         // Small delay to ensure UI is ready
         setTimeout(() => {
           handleStartSearch();
         }, 500);
       }
     }
-  }, [params.autoStart, isWalletInitialized, user?.id, status, params.wagerTct, hasEnoughTctBalance]);
-
-  useEffect(() => {
-    if (walletProvider && user?.id) {
-      initializeBiconomy(walletProvider);
-    }
-  }, [walletProvider, user?.id, initializeBiconomy]);
+  }, [params.autoStart, user?.id, status, params.wagerTct, storeTctBalance]);
 
   // Handle status changes
   useEffect(() => {
@@ -261,15 +247,9 @@ export default function PlayNowScreen() {
     const wager = player.wager_tct || 0;
 
     // Check balance
-    if (wager > 0) {
-      if (!isWalletInitialized) {
-        Alert.alert("Wallet Not Ready", "Please wait for your wallet to initialize.");
-        return;
-      }
-      if (!hasEnoughTctBalance(wager)) {
-        Alert.alert("Insufficient Balance", `You need ${wager} TCT to join this match.`);
-        return;
-      }
+    if (wager > 0 && storeTctBalance < wager) {
+      Alert.alert("Insufficient Balance", `You need ${wager} TCT to join this match.`);
+      return;
     }
 
     setJoiningPlayerId(player.user_id);
@@ -291,7 +271,7 @@ export default function PlayNowScreen() {
     } finally {
       setJoiningPlayerId(null);
     }
-  }, [user?.id, profile, isWalletInitialized, hasEnoughTctBalance, updateSettings, startSearching]);
+  }, [user?.id, profile, storeTctBalance, updateSettings, startSearching]);
 
   // Animation helpers
   const startSearchAnimation = () => {
@@ -353,26 +333,16 @@ export default function PlayNowScreen() {
     AudioManager?.play("chipStack");
 
     // Check balance for wager games
-    if (settings.wagerTct > 0) {
-      if (!isWalletInitialized) {
-        Alert.alert(
-          "Wallet Not Ready",
-          "Please wait for your wallet to initialize."
-        );
-        return;
-      }
-
-      if (!hasEnoughTctBalance(settings.wagerTct)) {
-        Alert.alert(
-          "Insufficient Balance",
-          `You need ${settings.wagerTct} TCT to play this match.`
-        );
-        return;
-      }
+    if (settings.wagerTct > 0 && storeTctBalance < settings.wagerTct) {
+      Alert.alert(
+        "Insufficient Balance",
+        `You need ${settings.wagerTct} TCT to play this match.`
+      );
+      return;
     }
 
     await startSearching();
-  }, [settings.wagerTct, isWalletInitialized, hasEnoughTctBalance, startSearching]);
+  }, [settings.wagerTct, storeTctBalance, startSearching]);
 
   const handleCancelSearch = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -408,7 +378,7 @@ export default function PlayNowScreen() {
 
   // Check wager eligibility
   const canWager =
-    settings.wagerTct === 0 || tctBalance >= settings.wagerTct;
+    settings.wagerTct === 0 || storeTctBalance >= settings.wagerTct;
 
   const rotationInterpolate = searchRotation.interpolate({
     inputRange: [0, 1],
@@ -440,9 +410,7 @@ export default function PlayNowScreen() {
           <Text style={styles.sectionTitle}>Stake Amount (TCT)</Text>
           <View style={styles.balanceBadge}>
             <Text style={styles.balanceText}>
-              {isWalletInitializing
-                ? "Loading..."
-                : `Balance: ${tctBalance.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+              {`Balance: ${storeTctBalance.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
             </Text>
           </View>
         </View>
@@ -457,7 +425,7 @@ export default function PlayNowScreen() {
         <View style={styles.wagerGrid}>
           {PLAY_NOW_WAGER_OPTIONS.map((amount) => {
             const isSelected = settings.wagerTct === amount;
-            const canAfford = tctBalance >= amount;
+            const canAfford = storeTctBalance >= amount;
 
             return (
               <TouchableOpacity
@@ -545,7 +513,7 @@ export default function PlayNowScreen() {
 
           {waitingPlayers.map((player) => {
             const playerProfile = player.profiles as any;
-            const canAffordJoin = player.wager_tct === 0 || tctBalance >= player.wager_tct;
+            const canAffordJoin = player.wager_tct === 0 || storeTctBalance >= player.wager_tct;
             const isJoining = joiningPlayerId === player.user_id;
 
             return (

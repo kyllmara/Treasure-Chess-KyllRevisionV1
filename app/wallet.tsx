@@ -20,7 +20,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import Slider from "@/components/shims/Slider";
 import { LinearGradient } from "expo-linear-gradient";
-import { TrendingUp, TrendingDown, Wallet as WalletIcon, CreditCard, Building2, Bitcoin, X, Copy, Check, History, ArrowLeft, RefreshCw, Clock, AlertCircle, Link2, Gift } from "lucide-react-native";
+import { TrendingUp, TrendingDown, Wallet as WalletIcon, CreditCard, Building2, Bitcoin, X, Copy, Check, History, ArrowLeft, RefreshCw, Clock, AlertCircle, Link2 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { AuthGate } from "@/components/AuthGate";
 import { useWalletStore, type Transaction, type TransactionFilter } from "@/stores/walletStore";
@@ -28,7 +28,6 @@ import { useUserStore } from "@/stores/userStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWallet } from "@/hooks/useWallet";
 import { requestWithdrawal, type WithdrawalRequest } from "@/lib/wallet";
-import { getRelaySDK } from "@/lib/relay";
 import { supabase } from "@/lib/supabase";
 import NetInfo from "@react-native-community/netinfo";
 import { ConnectWalletModal } from "@/components/ConnectWalletModal";
@@ -177,22 +176,6 @@ function WalletContent() {
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState<boolean>(false);
   const [showConnectWalletModal, setShowConnectWalletModal] = useState<boolean>(false);
 
-  // Stuck escrow funds state
-  const [stuckEscrowFunds, setStuckEscrowFunds] = useState<{
-    totalClaimableUsdc: number;
-    totalClaimableTct: number;
-    stuckGames: Array<{
-      gameId: string;
-      escrowAddress: string;
-      wagerUsdc: number;
-      status: string;
-      isPlayer1: boolean;
-      canCancel: boolean;
-    }>;
-  } | null>(null);
-  const [isCheckingEscrow, setIsCheckingEscrow] = useState(false);
-  const [isClaimingEscrow, setIsClaimingEscrow] = useState(false);
-
   // Get combined transactions (includes pending withdrawals)
   const combinedTransactions = getCombinedTransactions();
 
@@ -206,194 +189,6 @@ function WalletContent() {
       initializeWallet(profile.id);
     }
   }, [profile?.id, initializeWallet]);
-
-  // Check for stuck escrow funds when wallet address is available
-  const checkStuckEscrowFunds = useCallback(async () => {
-    if (!userWalletAddress) return;
-
-    setIsCheckingEscrow(true);
-    try {
-      const sdk = getRelaySDK();
-      const result = await sdk.checkStuckEscrowFunds(userWalletAddress);
-      setStuckEscrowFunds(result);
-      console.log("[Wallet] Stuck escrow check:", result);
-    } catch (error) {
-      console.error("[Wallet] Error checking stuck escrow:", error);
-    } finally {
-      setIsCheckingEscrow(false);
-    }
-  }, [userWalletAddress]);
-
-  // Check for stuck funds on mount and when wallet address changes
-  useEffect(() => {
-    if (userWalletAddress) {
-      checkStuckEscrowFunds();
-    }
-  }, [userWalletAddress, checkStuckEscrowFunds]);
-
-  // Handle claim stuck escrow funds - cancels or settles games on-chain
-  const handleClaimStuckFunds = useCallback(async () => {
-    if (!stuckEscrowFunds || stuckEscrowFunds.stuckGames.length === 0) return;
-
-    // Filter games by type
-    const cancellableGames = stuckEscrowFunds.stuckGames.filter(g => g.canCancel);
-    const activeGames = stuckEscrowFunds.stuckGames.filter(g => g.status === "Active");
-
-    // Calculate amounts
-    const claimableAmount = cancellableGames.reduce((sum, g) => sum + g.wagerUsdc, 0);
-    const lockedInActiveAmount = activeGames.reduce((sum, g) => sum + g.wagerUsdc, 0);
-
-    // Build detailed message showing each stuck game
-    const gameDetails = stuckEscrowFunds.stuckGames.map((game, i) => {
-      const statusLabel = game.status === "WaitingForOpponent" ? "No opponent joined"
-        : game.status === "Active" ? "Game completed (needs settlement)"
-        : game.status;
-      const actionLabel = game.canCancel ? "Can cancel"
-        : game.status === "Active" ? "Can request settlement"
-        : "Cannot claim";
-      return `${i + 1}. $${game.wagerUsdc.toFixed(2)} USDC - ${statusLabel}\n   ${actionLabel}`;
-    }).join("\n\n");
-
-    // Determine which actions are available
-    const hasClaimableGames = cancellableGames.length > 0;
-    const hasActiveGames = activeGames.length > 0;
-
-    // Build alert buttons based on available actions
-    const buttons: any[] = [{ text: "Close", style: "cancel" }];
-
-    if (hasClaimableGames) {
-      buttons.push({
-        text: `Cancel & Claim $${claimableAmount.toFixed(2)}`,
-        onPress: async () => {
-          setIsClaimingEscrow(true);
-          const sdk = getRelaySDK();
-          let successCount = 0;
-          let failCount = 0;
-          const errors: string[] = [];
-
-          for (const game of cancellableGames) {
-            try {
-              console.log(`[Wallet] Cancelling game ${game.gameId.slice(0, 20)}...`);
-              const result = await sdk.cancelGame(game.gameId, game.escrowAddress);
-
-              if (result.success) {
-                console.log(`[Wallet] Successfully cancelled game:`, result.txHash);
-                successCount++;
-              } else {
-                console.error(`[Wallet] Failed to cancel game:`, result.error);
-                failCount++;
-                errors.push(`Game ${successCount + failCount}: ${result.error || "Unknown error"}`);
-              }
-            } catch (error: any) {
-              console.error(`[Wallet] Error cancelling game:`, error);
-              failCount++;
-              errors.push(`Game ${successCount + failCount}: ${error.message || "Unknown error"}`);
-            }
-          }
-
-          if (successCount > 0) {
-            Alert.alert("Success", `Cancelled ${successCount} game(s). Funds will appear shortly.`);
-            refreshOnChainBalance();
-            checkStuckEscrowFunds();
-          } else {
-            Alert.alert("Failed", `Could not cancel games.\n\n${errors.join("\n")}`);
-          }
-          setIsClaimingEscrow(false);
-        },
-      });
-    }
-
-    if (hasActiveGames) {
-      buttons.push({
-        text: `Settle ${activeGames.length} Active Game(s)`,
-        onPress: async () => {
-          setIsClaimingEscrow(true);
-          let successCount = 0;
-          let failCount = 0;
-          const errors: string[] = [];
-
-          for (const game of activeGames) {
-            try {
-              console.log(`[Wallet] Looking up database game for on_chain_game_id: ${game.gameId.slice(0, 20)}...`);
-
-              // Find the database game with this on_chain_game_id
-              const { data: dbGame, error: dbError } = await supabase
-                .from("games")
-                .select("id, status, result, on_chain_settled")
-                .eq("on_chain_game_id", game.gameId)
-                .single();
-
-              if (dbError || !dbGame) {
-                console.log(`[Wallet] No database game found for ${game.gameId.slice(0, 20)}`);
-                failCount++;
-                errors.push(`Game not found in database`);
-                continue;
-              }
-
-              console.log(`[Wallet] Found database game:`, dbGame);
-
-              if (dbGame.status !== "completed") {
-                console.log(`[Wallet] Game ${dbGame.id} is not completed (status: ${dbGame.status})`);
-                failCount++;
-                errors.push(`Game still in progress (${dbGame.status})`);
-                continue;
-              }
-
-              if (dbGame.on_chain_settled) {
-                console.log(`[Wallet] Game ${dbGame.id} already settled on-chain`);
-                successCount++;
-                continue;
-              }
-
-              // Trigger settlement via game-complete function
-              console.log(`[Wallet] Triggering settlement for game ${dbGame.id}...`);
-              const { data: settleResult, error: settleError } = await supabase.functions.invoke("game-complete", {
-                body: { gameId: dbGame.id },
-              });
-
-              if (settleError) {
-                console.error(`[Wallet] Settlement failed:`, settleError);
-                failCount++;
-                errors.push(`Settlement failed: ${settleError.message}`);
-              } else {
-                console.log(`[Wallet] Settlement result:`, settleResult);
-                if (settleResult?.onChainSettlement?.success) {
-                  successCount++;
-                } else if (settleResult?.alreadyProcessed) {
-                  successCount++;
-                } else {
-                  failCount++;
-                  errors.push(`Settlement incomplete: ${settleResult?.onChainSettlement?.error || "Unknown"}`);
-                }
-              }
-            } catch (error: any) {
-              console.error(`[Wallet] Error settling game:`, error);
-              failCount++;
-              errors.push(error.message || "Unknown error");
-            }
-          }
-
-          if (successCount > 0 && failCount === 0) {
-            Alert.alert("Settlement Complete", `Successfully settled ${successCount} game(s). Funds will be released shortly.`);
-          } else if (successCount > 0) {
-            Alert.alert("Partial Success", `Settled ${successCount} game(s), ${failCount} failed.\n\n${errors.join("\n")}`);
-          } else {
-            Alert.alert("Settlement Failed", `Could not settle games.\n\n${errors.join("\n")}\n\nPlease contact support.`);
-          }
-
-          refreshOnChainBalance();
-          checkStuckEscrowFunds();
-          setIsClaimingEscrow(false);
-        },
-      });
-    }
-
-    Alert.alert(
-      "Locked Escrow Funds",
-      `${gameDetails}\n\n${hasClaimableGames ? `Claimable: $${claimableAmount.toFixed(2)} USDC\n` : ''}${hasActiveGames ? `Locked in active: $${lockedInActiveAmount.toFixed(2)} USDC` : ''}`,
-      buttons
-    );
-  }, [stuckEscrowFunds, refreshOnChainBalance, checkStuckEscrowFunds]);
 
   // Monitor network status for offline queue
   useEffect(() => {
@@ -415,16 +210,13 @@ function WalletContent() {
     // Refresh on-chain balance
     await refreshOnChainBalance();
 
-    // Also refresh stuck escrow check
-    checkStuckEscrowFunds();
-
     if (profile?.id) {
       await Promise.all([
         refreshBalance(profile.id),
         refreshTransactions(profile.id),
       ]);
     }
-  }, [profile?.id, refreshBalance, refreshTransactions, refreshOnChainBalance, checkStuckEscrowFunds]);
+  }, [profile?.id, refreshBalance, refreshTransactions, refreshOnChainBalance]);
 
   // Load more transactions for infinite scroll
   const handleLoadMoreTransactions = useCallback(() => {
@@ -878,52 +670,6 @@ function WalletContent() {
                     <RefreshCw size={16} color="#FFD700" />
                   </TouchableOpacity>
                 </View>
-              )}
-
-              {/* Stuck Escrow Funds Claim Banner - Show whenever there are stuck games */}
-              {stuckEscrowFunds && stuckEscrowFunds.stuckGames.length > 0 && (
-                <TouchableOpacity
-                  style={styles.claimBanner}
-                  onPress={handleClaimStuckFunds}
-                  disabled={isClaimingEscrow}
-                >
-                  <LinearGradient
-                    colors={stuckEscrowFunds.totalClaimableUsdc > 0
-                      ? ["rgba(78, 205, 196, 0.2)", "rgba(78, 205, 196, 0.1)"]
-                      : ["rgba(255, 165, 0, 0.2)", "rgba(255, 165, 0, 0.1)"]}
-                    style={styles.claimBannerGradient}
-                  >
-                    <View style={[styles.claimBannerIcon, stuckEscrowFunds.totalClaimableUsdc === 0 && { backgroundColor: 'rgba(255, 165, 0, 0.2)' }]}>
-                      <Gift size={24} color={stuckEscrowFunds.totalClaimableUsdc > 0 ? "#4ECDC4" : "#FFA500"} />
-                    </View>
-                    <View style={styles.claimBannerContent}>
-                      <Text style={[styles.claimBannerTitle, stuckEscrowFunds.totalClaimableUsdc === 0 && { color: '#FFA500' }]}>
-                        {stuckEscrowFunds.totalClaimableUsdc > 0 ? "Claim Stuck Funds" : "Locked Funds"}
-                      </Text>
-                      {stuckEscrowFunds.totalClaimableUsdc > 0 ? (
-                        <Text style={styles.claimBannerAmount}>
-                          ${stuckEscrowFunds.totalClaimableUsdc.toFixed(2)} USDC claimable
-                        </Text>
-                      ) : (
-                        <Text style={[styles.claimBannerAmount, { color: '#FFA500' }]}>
-                          {stuckEscrowFunds.stuckGames.length} game(s) in progress
-                        </Text>
-                      )}
-                      <Text style={styles.claimBannerSubtitle}>
-                        {stuckEscrowFunds.stuckGames.filter(g => g.canCancel).length > 0
-                          ? `${stuckEscrowFunds.stuckGames.filter(g => g.canCancel).length} game(s) can be claimed`
-                          : "Tap for details"}
-                      </Text>
-                    </View>
-                    {isClaimingEscrow ? (
-                      <ActivityIndicator size="small" color={stuckEscrowFunds.totalClaimableUsdc > 0 ? "#4ECDC4" : "#FFA500"} />
-                    ) : (
-                      <View style={[styles.claimBannerArrow, stuckEscrowFunds.totalClaimableUsdc === 0 && { backgroundColor: 'rgba(255, 165, 0, 0.2)' }]}>
-                        <Text style={[styles.claimBannerArrowText, stuckEscrowFunds.totalClaimableUsdc === 0 && { color: '#FFA500' }]}>→</Text>
-                      </View>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
               )}
 
               <View style={styles.tabContainer}>

@@ -13,7 +13,6 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { supabase } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
-import { getRelaySDK } from "@/lib/relay";
 
 
 // ============================================================================
@@ -87,14 +86,12 @@ export interface PlayNowStoreState {
   _subscription: RealtimeChannel | null;
   _pollInterval: NodeJS.Timeout | null;
   _durationInterval: NodeJS.Timeout | null;
-  _biconomyInitialized: boolean;
   _findMatchInProgress: boolean;
 }
 
 export interface PlayNowStoreActions {
   // Initialization
   initialize: (userId: string, userElo: number) => void;
-  initializeBiconomy: (walletProvider: any) => Promise<boolean>;
   cleanup: () => void;
 
   // Settings
@@ -166,7 +163,6 @@ export const usePlayNowStore = create<PlayNowStore>()(
     _subscription: null,
     _pollInterval: null,
     _durationInterval: null,
-    _biconomyInitialized: false,
     _findMatchInProgress: false,
 
     // --------------------------------------------------------------------------
@@ -195,27 +191,6 @@ export const usePlayNowStore = create<PlayNowStore>()(
         _pollInterval: null,
         _durationInterval: null,
       });
-    },
-
-    initializeBiconomy: async (walletProvider: any) => {
-      const state = get();
-      if (state._biconomyInitialized) return true;
-
-      try {
-        const sdk = getRelaySDK();
-        // Check if SDK is already initialized (from AuthContext pre-initialization)
-        if (sdk.isInitialized()) {
-          console.log("[PlayNowStore] Relay SDK already initialized, syncing state");
-        } else {
-          await sdk.initialize(walletProvider);
-          console.log("[PlayNowStore] Relay SDK initialized");
-        }
-        set({ _biconomyInitialized: true });
-        return true;
-      } catch (error) {
-        console.error("[PlayNowStore] Failed to initialize Relay SDK:", error);
-        return false;
-      }
     },
 
     cleanup: () => {

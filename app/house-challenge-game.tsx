@@ -29,7 +29,6 @@ import { ChessPieceComponent } from "@/components/ChessPieces";
 import { PawnPromotionModal } from "@/components/PawnPromotionModal";
 import { useSoundAndHaptics } from "@/hooks/useSoundAndHaptics";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useBiconomyWallet } from "@/hooks/useBiconomyWallet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHouseChallengeStore } from "@/stores/houseChallengeStore";
 import { chessAI, type Difficulty } from "@/lib/chessAI";
@@ -84,8 +83,6 @@ export default function HouseChallengeGameScreen() {
   const { user } = useApp();
   const { profile } = useAuth();
   const { game: gameSettings } = useSettingsStore();
-  const { tctBalance, refreshBalance, isInitialized: isWalletInitialized, payEntryFeeToVault } = useBiconomyWallet();
-  const [isPayingEntryFee, setIsPayingEntryFee] = useState(false);
   const {
     currentChallenge,
     currentAttempt,
@@ -166,15 +163,6 @@ export default function HouseChallengeGameScreen() {
     const initGame = async () => {
       if (!challengeId || !profile?.id) return;
 
-      // Wait for wallet to be initialized before checking balance
-      if (!isWalletInitialized) {
-        console.log("[HouseChallenge] Waiting for wallet to initialize...");
-        return;
-      }
-
-      // Refresh balance to get latest on-chain value
-      await refreshBalance();
-
       // Load challenge details
       const challenge = await loadChallenge(challengeId);
       if (!challenge) {
@@ -183,8 +171,6 @@ export default function HouseChallengeGameScreen() {
         ]);
         return;
       }
-
-      console.log("[HouseChallenge] Balance check:", { tctBalance, required: challenge.entry_fee_tct });
 
       // Check if user has remaining attempts from a previous session
       const paymentStatus = await checkNeedsEntryPayment(challengeId);
@@ -214,64 +200,26 @@ export default function HouseChallengeGameScreen() {
     };
 
     initGame();
-  }, [challengeId, profile?.id, isWalletInitialized]);
+  }, [challengeId, profile?.id]);
 
   // Start the challenge
   const handleStartChallenge = async () => {
     if (!currentChallenge || !profile?.id) return;
 
-    // Only check balance and pay if user needs to pay (no remaining attempts)
+    // Only check balance if user needs to pay (no remaining attempts)
     if (needsPayment) {
       // Final balance check before starting
-      if (currentChallenge.entry_fee_tct > tctBalance) {
+      const availableTct = profile.availableTct ?? 0;
+      if (currentChallenge.entry_fee_tct > availableTct) {
         Alert.alert(
           "Insufficient Balance",
-          `You need ${currentChallenge.entry_fee_tct.toLocaleString()} TCT but you only have ${tctBalance.toLocaleString()} TCT.`,
+          `You need ${currentChallenge.entry_fee_tct.toLocaleString()} TCT but you only have ${availableTct.toLocaleString()} TCT.`,
           [
             { text: "Top Up", onPress: () => router.push("/wallet" as any) },
             { text: "Cancel", style: "cancel" },
           ]
         );
         return;
-      }
-
-      // Pay entry fee to vault (if entry fee > 0) - Direct on-chain transfer
-      if (currentChallenge.entry_fee_tct > 0) {
-        setIsPayingEntryFee(true);
-        try {
-          console.log("[HouseChallenge] Paying entry fee to vault (on-chain)...", {
-            entryFeeTct: currentChallenge.entry_fee_tct,
-            challengeId: currentChallenge.id,
-          });
-
-          const paymentResult = await payEntryFeeToVault(
-            currentChallenge.entry_fee_tct,
-            currentChallenge.id
-          );
-
-          if (!paymentResult.success) {
-            throw new Error(paymentResult.error || "Payment failed");
-          }
-
-          console.log("[HouseChallenge] Entry fee paid! TX:", paymentResult.txHash);
-        } catch (error: any) {
-          console.error("[HouseChallenge] Failed to pay entry fee:", error);
-          setIsPayingEntryFee(false);
-
-          // Handle common errors
-          let errorMessage = "Failed to pay entry fee. ";
-          if (error.message?.includes("user rejected") || error.message?.includes("cancelled")) {
-            errorMessage = "Transaction was cancelled.";
-          } else if (error.message?.includes("Insufficient")) {
-            errorMessage = error.message;
-          } else {
-            errorMessage += error.message || "Please try again.";
-          }
-
-          Alert.alert("Payment Failed", errorMessage, [{ text: "OK" }]);
-          return;
-        }
-        setIsPayingEntryFee(false);
       }
     } else {
       console.log("[HouseChallenge] Using remaining attempt from session:", entrySessionId);
@@ -476,8 +424,6 @@ export default function HouseChallengeGameScreen() {
           payoutTxHash: payoutResult.txHash,
         } : null);
 
-        // Refresh balance after payout
-        setTimeout(() => refreshBalance(), 2000);
       } else {
         playLose();
         setGameResult({
@@ -487,9 +433,6 @@ export default function HouseChallengeGameScreen() {
           payoutAmount,
         });
       }
-
-      // Refresh balance after settlement (for losses too, to ensure accuracy)
-      setTimeout(() => refreshBalance(), 2000);
     },
     [
       currentAttempt,
@@ -504,7 +447,6 @@ export default function HouseChallengeGameScreen() {
       playWin,
       playLose,
       profile?.id,
-      refreshBalance,
     ]
   );
 
@@ -864,8 +806,8 @@ export default function HouseChallengeGameScreen() {
               {needsPayment && (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Your Balance:</Text>
-                  <Text style={[styles.infoValue, tctBalance >= currentChallenge.entry_fee_tct ? { color: "#4ADE80" } : { color: "#EF4444" }]}>
-                    {tctBalance.toLocaleString()} TCT
+                  <Text style={[styles.infoValue, (profile?.availableTct ?? 0) >= currentChallenge.entry_fee_tct ? { color: "#4ADE80" } : { color: "#EF4444" }]}>
+                    {(profile?.availableTct ?? 0).toLocaleString()} TCT
                   </Text>
                 </View>
               )}
@@ -915,16 +857,11 @@ export default function HouseChallengeGameScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.startButton, (isStarting || isPayingEntryFee) && styles.startButtonDisabled]}
+              style={[styles.startButton, isStarting && styles.startButtonDisabled]}
               onPress={handleStartChallenge}
-              disabled={isStarting || isPayingEntryFee}
+              disabled={isStarting}
             >
-              {isPayingEntryFee ? (
-                <>
-                  <ActivityIndicator color="#0F0F1E" style={{ marginRight: 8 }} />
-                  <Text style={styles.startButtonText}>Paying Entry Fee...</Text>
-                </>
-              ) : isStarting ? (
+              {isStarting ? (
                 <>
                   <ActivityIndicator color="#0F0F1E" style={{ marginRight: 8 }} />
                   <Text style={styles.startButtonText}>Starting...</Text>

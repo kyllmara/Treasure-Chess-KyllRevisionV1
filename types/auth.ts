@@ -189,8 +189,6 @@ export interface AuthState {
   /** Email used in current OTP flow */
   otpEmail: string | null;
 
-  /** Magic wallet provider (RPC provider for Web3 transactions) */
-  walletProvider: any | null;
 }
 
 // ============================================================================

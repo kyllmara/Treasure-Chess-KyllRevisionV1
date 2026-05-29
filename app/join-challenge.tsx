@@ -41,11 +41,10 @@ import * as Haptics from "expo-haptics";
 import { useChallengeStore } from "@/stores/challengeStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { useBiconomyWallet } from "@/hooks/useBiconomyWallet";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { Challenge, ChallengePlayer } from "@/lib/challenges";
 import { getAvatarConfig } from "@/constants/avatars";
-import { tctToUsdc } from "@/lib/relay";
+import { tctToUsdc } from "@/lib/tct";
 
 // ============================================================================
 // Constants
@@ -61,29 +60,16 @@ const VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export default function JoinChallengeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ code?: string }>();
-  const { user, profile, walletProvider } = useAuthStore();
+  const { user } = useAuthStore();
 
-  // Get TCT balance from Biconomy wallet (on-chain USDC converted to TCT)
-  const {
-    tctBalance,
-    isInitialized: isWalletInitialized,
-    isInitializing: isWalletInitializing,
-    hasEnoughTctBalance,
-  } = useBiconomyWallet();
-
-  // Fallback to wallet store if Biconomy not initialized
   const { tctBalance: storeTctBalance } = useWalletStore();
-  const effectiveTctBalance = isWalletInitialized ? tctBalance : storeTctBalance;
 
   const {
     searchByCode,
     joinByRoomCode,
-    joinOnChainChallenge,
-    initializeBiconomy,
     currentChallenge,
     isLoading,
     isJoining,
-    isOnChainPending,
     error,
     joinedGameId,
     clearError,
@@ -110,13 +96,6 @@ export default function JoinChallengeScreen() {
       initialize(user.id);
     }
   }, [user?.id, initialize]);
-
-  // Initialize Biconomy when wallet provider is available
-  useEffect(() => {
-    if (walletProvider && user?.id) {
-      initializeBiconomy(walletProvider);
-    }
-  }, [walletProvider, user?.id, initializeBiconomy]);
 
   // Handle pre-filled code from params
   useEffect(() => {
@@ -257,63 +236,27 @@ export default function JoinChallengeScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // For wager games, use on-chain escrow
-    if (currentChallenge.wager_tct > 0) {
-      // Check wallet is initialized
-      if (!isWalletInitialized) {
-        Alert.alert(
-          "Wallet Not Ready",
-          "Please wait for your wallet to initialize before joining a wager game.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
+    // Check balance for wager games
+    if (currentChallenge.wager_tct > 0 && storeTctBalance < currentChallenge.wager_tct) {
+      Alert.alert(
+        "Insufficient Balance",
+        `You need ${currentChallenge.wager_tct} TCT to join this challenge. Your balance: ${storeTctBalance} TCT`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
 
-      // Check balance using Biconomy wallet
-      if (!hasEnoughTctBalance(currentChallenge.wager_tct)) {
-        Alert.alert(
-          "Insufficient Balance",
-          `You need ${currentChallenge.wager_tct} TCT (${tctToUsdc(currentChallenge.wager_tct).toFixed(2)} USDC) to join this challenge. Your balance: ${effectiveTctBalance} TCT`,
-          [{ text: "OK" }]
-        );
-        return;
-      }
+    const success = await joinByRoomCode(roomCode);
 
-      // Check if challenge has on-chain game ID
-      if (!currentChallenge.on_chain_game_id) {
-        Alert.alert(
-          "Error",
-          "This wager challenge is missing on-chain game data. Please try a different challenge.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      // Use on-chain challenge joining
-      const result = await joinOnChainChallenge(currentChallenge.id, currentChallenge.on_chain_game_id);
-
-      if (!result.success) {
-        setSearchError(result.error || "Failed to join challenge on-chain");
-        triggerShakeAnimation();
-      }
-      // If successful, the useEffect watching joinedGameId will handle navigation
-    } else {
-      // Free games use standard flow (no on-chain escrow)
-      const success = await joinByRoomCode(roomCode);
-
-      if (!success) {
-        setSearchError("Failed to join challenge");
-        triggerShakeAnimation();
-      }
+    if (!success) {
+      setSearchError("Failed to join challenge");
+      triggerShakeAnimation();
     }
   }, [
     currentChallenge,
     roomCode,
-    effectiveTctBalance,
-    isWalletInitialized,
-    hasEnoughTctBalance,
+    storeTctBalance,
     joinByRoomCode,
-    joinOnChainChallenge,
     triggerShakeAnimation,
   ]);
 
@@ -325,14 +268,11 @@ export default function JoinChallengeScreen() {
   const codeChars = roomCode.split("");
   const isCodeComplete = roomCode.length === ROOM_CODE_LENGTH;
 
-  // For wager games, check Biconomy wallet balance; for free games, always allow
   const canJoin =
     currentChallenge &&
-    (currentChallenge.wager_tct === 0 ||
-      (isWalletInitialized && effectiveTctBalance >= currentChallenge.wager_tct));
+    (currentChallenge.wager_tct === 0 || storeTctBalance >= currentChallenge.wager_tct);
 
-  // Show loading state for on-chain transactions
-  const isProcessing = isJoining || isOnChainPending;
+  const isProcessing = isJoining;
 
   const creator = currentChallenge?.creator as ChallengePlayer | undefined;
   const creatorAvatar = creator?.avatar_index !== undefined
@@ -549,9 +489,7 @@ export default function JoinChallengeScreen() {
                   <View style={styles.warningBox}>
                     <AlertCircle size={16} color="#FF6B6B" />
                     <Text style={styles.warningText}>
-                      {!isWalletInitialized
-                        ? "Wallet initializing... Please wait."
-                        : `Insufficient balance. You need ${currentChallenge.wager_tct} TCT (${tctToUsdc(currentChallenge.wager_tct).toFixed(2)} USDC). You have: ${effectiveTctBalance} TCT`}
+                      {`Insufficient balance. You need ${currentChallenge.wager_tct} TCT. You have: ${storeTctBalance} TCT`}
                     </Text>
                   </View>
                 )}
