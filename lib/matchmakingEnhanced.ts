@@ -288,10 +288,9 @@ export class EnhancedMatchmakingService {
     this.searchStartTime = Date.now();
 
     if (!isSupabaseConfigured) {
-      // Simulate queue for demo mode
-      this.setStatus("searching");
-      this.startDemoPolling();
-      return true;
+      this.setStatus("error");
+      this.callbacks.onError?.(new Error("Supabase is not configured — cannot join matchmaking"));
+      return false;
     }
 
     try {
@@ -395,14 +394,32 @@ export class EnhancedMatchmakingService {
     }
 
     if (!isSupabaseConfigured) {
-      // Demo mode - simulate ready
-      this.setStatus("ready");
-      setTimeout(() => this.startGameCountdown(), 1000);
-      return true;
+      this.setStatus("error");
+      this.callbacks.onError?.(new Error("Supabase is not configured"));
+      return false;
     }
 
     try {
-      // Broadcast ready status
+      // Persist ready state to DB atomically — this is the source of truth
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "confirm_game_ready",
+        { p_game_id: this.currentGameId }
+      );
+
+      if (rpcError) {
+        console.error("[Matchmaking] confirm_game_ready RPC error:", rpcError);
+        return false;
+      }
+
+      if (!rpcData?.success) {
+        console.error("[Matchmaking] confirm_game_ready failed:", rpcData?.error);
+        return false;
+      }
+
+      this.setStatus("ready");
+
+      // Also broadcast so the other player's client updates its UI immediately
+      // without waiting for the next DB poll
       await supabase.channel(`pregame:${this.currentGameId}`).send({
         type: "broadcast",
         event: "player_ready",
@@ -411,8 +428,6 @@ export class EnhancedMatchmakingService {
           timestamp: Date.now(),
         },
       });
-
-      this.setStatus("ready");
 
       // Update local state
       if (this.preGameState) {
@@ -426,11 +441,8 @@ export class EnhancedMatchmakingService {
         }
         this.callbacks.onPreGameUpdate?.(this.preGameState);
 
-        // Check if both ready
-        if (
-          this.preGameState.whitePlayer.isReady &&
-          this.preGameState.blackPlayer.isReady
-        ) {
+        // If the RPC already transitioned the game to 'active', both players are ready
+        if (rpcData?.both_ready) {
           this.startGameCountdown();
         }
       }
@@ -470,28 +482,7 @@ export class EnhancedMatchmakingService {
     if (!this.config) return defaultStats;
 
     if (!isSupabaseConfigured) {
-      // Demo stats
-      return {
-        ...defaultStats,
-        totalInQueue: Math.floor(Math.random() * 20) + 5,
-        compatiblePlayers: Math.floor(Math.random() * 5) + 1,
-        estimatedWaitSeconds: Math.floor(Math.random() * 30) + 5,
-        queuePosition: 1,
-        playersPerStakeTier: {
-          [STAKE_TIERS.FREE]: Math.floor(Math.random() * 10),
-          [STAKE_TIERS.MICRO]: Math.floor(Math.random() * 8),
-          [STAKE_TIERS.LOW]: Math.floor(Math.random() * 5),
-          [STAKE_TIERS.MEDIUM]: Math.floor(Math.random() * 3),
-          [STAKE_TIERS.HIGH]: Math.floor(Math.random() * 2),
-          [STAKE_TIERS.WHALE]: Math.floor(Math.random() * 1),
-        },
-        playersPerTimeCategory: {
-          bullet: Math.floor(Math.random() * 8),
-          blitz: Math.floor(Math.random() * 10),
-          rapid: Math.floor(Math.random() * 6),
-          classical: Math.floor(Math.random() * 2),
-        },
-      };
+      return defaultStats;
     }
 
     try {
@@ -689,43 +680,15 @@ export class EnhancedMatchmakingService {
         return { matched: false };
       }
 
-      // Attempt atomic claim
-      const { data: claimData, error: claimError } = await supabase
-        .from("matchmaking_queue")
-        .update({
-          status: "matched",
-          matched_with_id: validOpponent.user_id,
-          matched_at: new Date().toISOString(),
-        })
-        .eq("id", this.queueEntryId)
-        .eq("status", "waiting")
-        .select()
-        .single();
-
-      if (claimError || !claimData) {
-        return this.checkIfMatched();
-      }
-
-      // Update opponent
-      await supabase
-        .from("matchmaking_queue")
-        .update({
-          status: "matched",
-          matched_with_id: this.userId,
-          matched_at: new Date().toISOString(),
-        })
-        .eq("id", validOpponent.id)
-        .eq("status", "waiting");
-
-      // Create game and pre-game state
-      const matchResult = await this.createGameWithPreGame(validOpponent.user_id);
+      // Delegate everything to the atomic server-side RPC — it handles the
+      // race-condition guard, both queue updates, game creation, escrow, and
+      // balance locking in one transaction.
+      const matchResult = await this.createGameWithPreGame(
+        validOpponent.id,      // opponent's queue entry ID
+        validOpponent.user_id  // opponent's user ID
+      );
 
       if (matchResult.matched) {
-        await supabase
-          .from("matchmaking_queue")
-          .update({ game_id: matchResult.gameId })
-          .in("id", [this.queueEntryId, validOpponent.id]);
-
         this.setStatus("match_found");
         this.stopPolling();
         this.callbacks.onMatchFound?.(matchResult);
@@ -776,145 +739,99 @@ export class EnhancedMatchmakingService {
   }
 
   private async createGameWithPreGame(
+    opponentQueueId: string,
     opponentId: string
   ): Promise<MatchFoundResult> {
-    if (!this.config) return { matched: false };
+    if (!this.config || !this.queueEntryId) return { matched: false };
 
     try {
-      // Random color assignment
-      const playerIsWhite = Math.random() < 0.5;
-      const whitePlayerId = playerIsWhite ? this.userId : opponentId;
-      const blackPlayerId = playerIsWhite ? opponentId : this.userId;
+      const myUserId = (await supabase.auth.getUser()).data.user?.id;
+      if (!myUserId) throw new Error("Not authenticated");
 
-      // Get profiles
+      // Single atomic RPC — handles race-condition guard, queue updates,
+      // game creation, escrow creation, and balance locking in one transaction.
+      const { data, error } = await supabase.rpc("create_matched_game", {
+        p_my_queue_id:       this.queueEntryId,
+        p_opponent_queue_id: opponentQueueId,
+        p_my_user_id:        myUserId,
+      });
+
+      if (error) {
+        throw new Error(error.message || "RPC error");
+      }
+
+      if (!data?.success) {
+        if (data?.error === "Match already claimed") {
+          // The other player's client got there first — check if we were
+          // matched by them so we can still enter the pre-game screen.
+          return this.checkIfMatched();
+        }
+        throw new Error(data?.error || "Failed to create game");
+      }
+
+      const gameId: string = data.game_id;
+      const whitePlayerId: string = data.white_player_id;
+      const blackPlayerId: string = data.black_player_id;
+      const playerIsWhite = whitePlayerId === myUserId;
+
+      this.currentGameId = gameId;
+
+      // Fetch profiles to build the pre-game state UI
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("id, username, avatar_index, elo_rating")
-        .in("id", [this.userId, opponentId]);
+        .in("id", [myUserId, opponentId]);
 
       if (profileError || !profiles || profiles.length !== 2) {
         throw new Error("Failed to get player profiles");
       }
 
-      const myProfile = profiles.find((p) => p.id === this.userId);
-      const opponentProfile = profiles.find((p) => p.id === opponentId);
-
-      if (!myProfile || !opponentProfile) {
-        throw new Error("Profile not found");
-      }
-
-      // Create game in 'pending' status (will become 'active' after both ready)
-      const { data: game, error: gameError } = await supabase
-        .from("games")
-        .insert({
-          white_player_id: whitePlayerId,
-          black_player_id: blackPlayerId,
-          wager_tct: this.config.stakeTier,
-          time_control_seconds: this.config.timeControl.baseTimeSeconds,
-          increment_seconds: this.config.timeControl.incrementSeconds,
-          status: "pending", // Pending until both ready
-          is_rated: this.config.isRated ?? true,
-          initial_fen: INITIAL_FEN,
-          current_fen: INITIAL_FEN,
-          white_time_remaining: this.config.timeControl.baseTimeSeconds,
-          black_time_remaining: this.config.timeControl.baseTimeSeconds,
-          move_count: 0,
-          current_turn: "w",
-          white_elo_before: playerIsWhite
-            ? myProfile.elo_rating
-            : opponentProfile.elo_rating,
-          black_elo_before: playerIsWhite
-            ? opponentProfile.elo_rating
-            : myProfile.elo_rating,
-        })
-        .select()
-        .single();
-
-      if (gameError || !game) {
-        throw new Error("Failed to create game");
-      }
-
-      this.currentGameId = game.id;
-
-      // Create escrow if wager
-      if (this.config.stakeTier > 0) {
-        await this.createEscrow(game.id, whitePlayerId, blackPlayerId);
-      }
-
-      // Build pre-game state
-      const whiteProfile = playerIsWhite ? myProfile : opponentProfile;
-      const blackProfile = playerIsWhite ? opponentProfile : myProfile;
+      const myProfile       = profiles.find((p) => p.id === myUserId)!;
+      const opponentProfile = profiles.find((p) => p.id === opponentId)!;
+      const whiteProfile    = playerIsWhite ? myProfile : opponentProfile;
+      const blackProfile    = playerIsWhite ? opponentProfile : myProfile;
 
       const preGameState: PreGameState = {
-        gameId: game.id,
+        gameId,
         whitePlayer: {
-          playerId: whitePlayerId,
-          username: whiteProfile.username,
+          playerId:   whitePlayerId,
+          username:   whiteProfile.username,
           avatarIndex: whiteProfile.avatar_index,
-          eloRating: whiteProfile.elo_rating,
-          isReady: false,
-          color: "w",
+          eloRating:  whiteProfile.elo_rating,
+          isReady:    false,
+          color:      "w",
         },
         blackPlayer: {
-          playerId: blackPlayerId,
-          username: blackProfile.username,
+          playerId:   blackPlayerId,
+          username:   blackProfile.username,
           avatarIndex: blackProfile.avatar_index,
-          eloRating: blackProfile.elo_rating,
-          isReady: false,
-          color: "b",
+          eloRating:  blackProfile.elo_rating,
+          isReady:    false,
+          color:      "b",
         },
-        status: "waiting",
+        status:    "waiting",
         createdAt: Date.now(),
         expiresAt: Date.now() + READY_CONFIRMATION_TIMEOUT_SECONDS * 1000,
       };
 
       return {
-        matched: true,
-        gameId: game.id,
+        matched:     true,
+        gameId,
         opponentId,
         playerColor: playerIsWhite ? "w" : "b",
         opponent: {
-          id: opponentProfile.id,
-          username: opponentProfile.username,
+          id:          opponentProfile.id,
+          username:    opponentProfile.username,
           avatarIndex: opponentProfile.avatar_index,
-          eloRating: opponentProfile.elo_rating,
+          eloRating:   opponentProfile.elo_rating,
         },
         preGameState,
-        stakeTct: this.config.stakeTier,
+        stakeTct:    this.config.stakeTier,
         timeControl: this.config.timeControl,
       };
     } catch (error) {
       console.error("[Matchmaking] Error creating game:", error);
       return { matched: false };
-    }
-  }
-
-  private async createEscrow(
-    gameId: string,
-    whitePlayerId: string,
-    blackPlayerId: string
-  ): Promise<void> {
-    if (!this.config) return;
-
-    const wagerTct = this.config.stakeTier;
-
-    await supabase.from("game_escrows").insert({
-      game_id: gameId,
-      player_white_id: whitePlayerId,
-      player_white_locked_tct: wagerTct,
-      player_black_id: blackPlayerId,
-      player_black_locked_tct: wagerTct,
-      total_pool_tct: wagerTct * 2,
-      status: "active",
-    });
-
-    // Lock funds
-    for (const playerId of [whitePlayerId, blackPlayerId]) {
-      await supabase.rpc("lock_balance", {
-        p_user_id: playerId,
-        p_amount: wagerTct,
-        p_game_id: gameId,
-      });
     }
   }
 
@@ -1058,20 +975,15 @@ export class EnhancedMatchmakingService {
 
     this.preGameState.status = "timed_out";
 
-    // Cancel game and refund wagers
+    // Use the atomic RPC so balances are refunded correctly in one transaction
     if (isSupabaseConfigured) {
-      await supabase
-        .from("games")
-        .update({ status: "abandoned", end_reason: "ready_timeout" })
-        .eq("id", this.currentGameId);
-
-      // Refund escrow if exists
-      if (this.config?.stakeTier && this.config.stakeTier > 0) {
-        // Trigger refund logic
-        await supabase
-          .from("game_escrows")
-          .update({ status: "refunded" })
-          .eq("game_id", this.currentGameId);
+      const { data, error } = await supabase.rpc("cancel_pending_game", {
+        p_game_id: this.currentGameId,
+      });
+      if (error) {
+        console.error("[Matchmaking] cancel_pending_game error:", error);
+      } else if (!data?.success) {
+        console.warn("[Matchmaking] cancel_pending_game returned:", data?.error);
       }
     }
 
@@ -1102,71 +1014,6 @@ export class EnhancedMatchmakingService {
       // Expand ELO range
       await this.expandEloRange();
     }, POLL_INTERVAL_MS);
-  }
-
-  private startDemoPolling(): void {
-    // Demo mode - simulate finding match after random time
-    const matchDelay = Math.random() * 8000 + 2000; // 2-10 seconds
-
-    this.pollIntervalId = setTimeout(async () => {
-      // Simulate match found
-      const demoResult: MatchFoundResult = {
-        matched: true,
-        gameId: `demo_${Date.now()}`,
-        opponentId: `demo_opponent_${Date.now()}`,
-        playerColor: Math.random() < 0.5 ? "w" : "b",
-        opponent: {
-          id: `demo_opponent_${Date.now()}`,
-          username: "ChessMaster42",
-          avatarIndex: Math.floor(Math.random() * 10),
-          eloRating: (this.config?.userElo || 1200) + (Math.random() * 200 - 100),
-        },
-        stakeTct: this.config?.stakeTier,
-        timeControl: this.config?.timeControl,
-      };
-
-      this.currentGameId = demoResult.gameId!;
-      this.setStatus("match_found");
-      this.callbacks.onMatchFound?.(demoResult);
-
-      // Setup demo pre-game
-      this.preGameState = {
-        gameId: demoResult.gameId!,
-        whitePlayer: {
-          playerId: demoResult.playerColor === "w" ? this.userId : demoResult.opponentId!,
-          username: demoResult.playerColor === "w" ? "You" : demoResult.opponent!.username,
-          avatarIndex: demoResult.playerColor === "w" ? 0 : demoResult.opponent!.avatarIndex,
-          eloRating: demoResult.playerColor === "w" ? (this.config?.userElo || 1200) : demoResult.opponent!.eloRating,
-          isReady: false,
-          color: "w",
-        },
-        blackPlayer: {
-          playerId: demoResult.playerColor === "b" ? this.userId : demoResult.opponentId!,
-          username: demoResult.playerColor === "b" ? "You" : demoResult.opponent!.username,
-          avatarIndex: demoResult.playerColor === "b" ? 0 : demoResult.opponent!.avatarIndex,
-          eloRating: demoResult.playerColor === "b" ? (this.config?.userElo || 1200) : demoResult.opponent!.eloRating,
-          isReady: false,
-          color: "b",
-        },
-        status: "waiting",
-        createdAt: Date.now(),
-        expiresAt: Date.now() + READY_CONFIRMATION_TIMEOUT_SECONDS * 1000,
-      };
-
-      this.setStatus("waiting_ready");
-      this.callbacks.onPreGameUpdate?.(this.preGameState);
-
-      // Simulate opponent becoming ready after 1-3 seconds
-      setTimeout(() => {
-        if (this.preGameState) {
-          const opponentColor = demoResult.playerColor === "w" ? "blackPlayer" : "whitePlayer";
-          this.preGameState[opponentColor].isReady = true;
-          this.preGameState[opponentColor].readyAt = Date.now();
-          this.callbacks.onOpponentReady?.(this.preGameState[opponentColor].playerId);
-          this.callbacks.onPreGameUpdate?.(this.preGameState);
-        }
-      }, Math.random() * 2000 + 1000);
-    }, matchDelay) as unknown as NodeJS.Timeout;
   }
 
   private stopPolling(): void {

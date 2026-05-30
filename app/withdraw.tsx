@@ -798,25 +798,6 @@ export default function WithdrawScreen() {
             disabled={availableBalance < MIN_WITHDRAWAL_TCT}
           />
 
-          <MethodCard
-            title="Bridge to Other Chain"
-            subtitle="Coming soon — Base wallet withdrawal available now"
-            icon={Globe}
-            gradientColors={["#555", "#444"]}
-            onPress={() => Alert.alert("Coming Soon", "Cross-chain bridging is not yet available. Please withdraw to your Base wallet.")}
-            badge="Soon"
-            disabled={true}
-          />
-
-          <MethodCard
-            title="Bank Transfer"
-            subtitle="Coming soon — crypto withdrawal available now"
-            icon={Building2}
-            gradientColors={["#555", "#444"]}
-            onPress={() => Alert.alert("Coming Soon", "Bank transfers are not yet available. Please withdraw to your Base wallet.")}
-            badge="Soon"
-            disabled={true}
-          />
         </View>
 
         {pendingWithdrawalsList.length > 0 && (

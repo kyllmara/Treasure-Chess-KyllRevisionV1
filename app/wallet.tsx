@@ -774,7 +774,7 @@ function WalletContent() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Withdraw Funds</Text>
                   <Text style={styles.withdrawDescription}>
-                    Withdraw to a Polygon wallet, bridge to another chain, or request a bank transfer.
+                    Withdraw USDC to your Base wallet.
                   </Text>
                   <TouchableOpacity
                     style={styles.actionButton}

@@ -380,13 +380,11 @@ function MatchmakingContent() {
     onGameStart: (gameId) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({
-        pathname: "/game" as any,
+        pathname: "/online-game" as any,
         params: {
           gameId,
-          isOnlineMultiplayer: "true",
-          opponent: matchResult?.opponent?.username || "Opponent",
-          opponentRating: matchResult?.opponent?.eloRating?.toString() || "1200",
-          betAmount: selectedStake.toString(),
+          wagerTct: selectedStake.toString(),
+          source: "matchmaking",
         },
       });
     },

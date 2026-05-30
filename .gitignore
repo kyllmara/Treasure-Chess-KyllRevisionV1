@@ -3,6 +3,8 @@
 # Specification documents (keep local only)
 *.md
 !README.md
+!ISSUES.md
+!SECURITY_AUDIT.md
 
 # Environment variables
 .env
