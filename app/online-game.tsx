@@ -180,6 +180,12 @@ export default function OnlineGameScreen() {
   const isSubmittingMoveRef = useRef(false); // Ref for polling to check
   const [error, setError] = useState<string | null>(null);
 
+  // Opponent presence / abandonment state
+  const [opponentOfflineSince, setOpponentOfflineSince] = useState<number | null>(null); // epoch ms
+  const opponentOfflineSinceRef = useRef<number | null>(null);
+  const [canClaimAbandon, setCanClaimAbandon] = useState(false);
+  const ABANDON_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+
   // Real-time subscription
   const subscriptionRef = useRef<RealtimeChannel | null>(null);
 
@@ -956,6 +962,114 @@ export default function OnlineGameScreen() {
     }
   }, [gameData?.status]);
 
+  // Track opponent offline duration and surface "Claim Win" button after 2 minutes
+  useEffect(() => {
+    if (!gameData || gameData.status !== "active" || !profile?.id) return;
+
+    const opponentId =
+      gameData.white_player_id === profile.id
+        ? gameData.black_player_id
+        : gameData.white_player_id;
+
+    // Track presence via Supabase Realtime presence on the same channel
+    const presenceChannel = supabase.channel(`presence:game:${gameData.id}`, {
+      config: { presence: { key: profile.id } },
+    });
+
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = presenceChannel.presenceState();
+        const opponentOnline = Object.keys(state).some((key) => key === opponentId);
+
+        if (opponentOnline) {
+          // Opponent came back online — reset
+          opponentOfflineSinceRef.current = null;
+          setOpponentOfflineSince(null);
+          setCanClaimAbandon(false);
+        } else {
+          // Opponent is offline — record when we first noticed
+          if (opponentOfflineSinceRef.current === null) {
+            const now = Date.now();
+            opponentOfflineSinceRef.current = now;
+            setOpponentOfflineSince(now);
+          }
+        }
+      })
+      .on("presence", { event: "leave" }, ({ key }) => {
+        if (key === opponentId) {
+          if (opponentOfflineSinceRef.current === null) {
+            const now = Date.now();
+            opponentOfflineSinceRef.current = now;
+            setOpponentOfflineSince(now);
+          }
+        }
+      })
+      .on("presence", { event: "join" }, ({ key }) => {
+        if (key === opponentId) {
+          opponentOfflineSinceRef.current = null;
+          setOpponentOfflineSince(null);
+          setCanClaimAbandon(false);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await presenceChannel.track({ userId: profile.id, online: true });
+        }
+      });
+
+    // Poll every 10 seconds to check if threshold has been crossed
+    const abandonCheckInterval = setInterval(() => {
+      const since = opponentOfflineSinceRef.current;
+      if (since !== null && Date.now() - since >= ABANDON_THRESHOLD_MS) {
+        setCanClaimAbandon(true);
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(abandonCheckInterval);
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [gameData?.id, gameData?.status, profile?.id]);
+
+  // Handle claim win by abandonment
+  const handleClaimAbandon = useCallback(() => {
+    if (!gameId || !gameData || !profile?.id) return;
+
+    const winnerId = profile.id;
+    const result = myColor === "w" ? "white_wins" : "black_wins";
+
+    Alert.alert(
+      "Claim Win by Abandonment",
+      "Your opponent has been offline for more than 2 minutes. Do you want to claim a win?",
+      [
+        { text: "Wait", style: "cancel" },
+        {
+          text: "Claim Win",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error: invokeError } = await supabase.functions.invoke("game-complete", {
+                body: {
+                  gameId,
+                  result,
+                  winnerId,
+                  endReason: "abandon",
+                  finalFen: chess.fen(),
+                },
+              });
+              if (invokeError) {
+                Alert.alert("Error", "Could not claim win. Please try again.");
+              }
+            } catch (err) {
+              console.error("[OnlineGame] Abandon claim error:", err);
+              Alert.alert("Error", "Could not claim win. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  }, [gameId, gameData, profile?.id, myColor, chess]);
+
   // Save game state to database when leaving (to persist state for rejoin)
   const saveGameState = useCallback(async () => {
     const gId = gameIdRef.current;
@@ -1201,16 +1315,41 @@ export default function OnlineGameScreen() {
           </View>
         </View>
 
+        {/* Ready-check overlay: shown while game is not yet active */}
+        {(gameData.status === "pending" ||
+          gameData.status === "ready_white" ||
+          gameData.status === "ready_black") && (
+          <View style={styles.boardReadyOverlay}>
+            <Text style={styles.boardReadyOverlayText}>
+              Waiting for both players to confirm ready
+            </Text>
+            <Text style={styles.boardReadyOverlaySubtext}>
+              The game will start automatically once both players are ready.
+            </Text>
+          </View>
+        )}
+
         {/* Turn indicator */}
         <View style={styles.turnIndicator}>
           <Text style={styles.turnText}>
-            {gameData.status !== "active"
+            {gameData.status === "pending" ||
+            gameData.status === "ready_white" ||
+            gameData.status === "ready_black"
+              ? "Waiting for ready..."
+              : gameData.status !== "active"
               ? "Game Over"
               : isMyTurn
               ? "Your turn"
               : "Opponent's turn"}
           </Text>
         </View>
+
+        {/* Claim win button when opponent has been offline >2 minutes */}
+        {canClaimAbandon && gameData.status === "active" && !isMyTurn && (
+          <TouchableOpacity style={styles.abandonButton} onPress={handleClaimAbandon}>
+            <Text style={styles.abandonText}>Opponent offline — Claim Win</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Bottom player info (you) */}
@@ -1395,6 +1534,50 @@ const styles = StyleSheet.create({
   boardContainer: {
     alignItems: "center",
     marginVertical: 16,
+    position: "relative",
+  },
+  boardReadyOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 40, // leave room for turn indicator below
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(15, 15, 30, 0.75)",
+    zIndex: 5,
+    borderRadius: 4,
+  },
+  boardReadyOverlayText: {
+    color: "#FFD700",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  boardReadyOverlaySubtext: {
+    color: "#A0A0A0",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  abandonButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+    marginTop: 10,
+  },
+  abandonText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "600",
   },
   boardWrapper: {
     flexDirection: "row",
