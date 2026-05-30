@@ -68,19 +68,8 @@ Deno.serve(async (req: Request) => {
       const token = authHeader.substring(7);
       if (token === SUPABASE_SERVICE_KEY) {
         isAuthorized = true;
-      } else {
-        try {
-          const parts = token.split(".");
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            if (payload.role === "service_role") {
-              isAuthorized = true;
-            }
-          }
-        } catch {
-          // Invalid JWT
-        }
       }
+      // NOTE: We do NOT accept unverified JWT claims for service_role.
     }
 
     if (!isAuthorized && apiKeyHeader && SETTLEMENT_API_KEY && apiKeyHeader === SETTLEMENT_API_KEY) {

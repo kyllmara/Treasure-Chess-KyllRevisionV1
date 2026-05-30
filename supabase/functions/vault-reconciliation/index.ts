@@ -31,11 +31,23 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const cronSecret = Deno.env.get("CRON_SECRET");
 
     if (req.method !== "POST") {
       return jsonResponse({ error: "Method not allowed" }, 405);
     }
+
+    const authHeader = req.headers.get("Authorization");
+    const cronHeader = req.headers.get("X-Cron-Secret");
+    const authorized =
+      authHeader === `Bearer ${supabaseServiceKey}` ||
+      (!!cronSecret && cronHeader === cronSecret);
+
+    if (!authorized) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let body: any = {};
     try {
