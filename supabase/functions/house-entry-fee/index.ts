@@ -42,11 +42,12 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const parts = token.split(".");
-    const payload = JSON.parse(atob(parts[1]));
-    const userId = payload.sub;
-
-    if (!userId) throw new Error("Invalid token");
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const userId = user.id;
 
     // Parse request
     const { userAddress, amountUsdc, challengeId, permit } = await req.json();

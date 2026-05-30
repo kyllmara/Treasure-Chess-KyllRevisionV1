@@ -71,31 +71,19 @@ Deno.serve(async (req: Request) => {
     if (token === SUPABASE_SERVICE_KEY) {
       isServiceRole = true;
     } else {
-      try {
-        const parts = token.split(".");
-        if (parts.length !== 3) throw new Error("Invalid JWT format");
-        const payload = JSON.parse(atob(parts[1]));
-
-        if (payload.role === "service_role") {
-          isServiceRole = true;
-        } else {
-          const now = Math.floor(Date.now() / 1000);
-          if (payload.exp && payload.exp < now) {
-            return new Response(
-              JSON.stringify({ success: false, error: "Token expired" }),
-              { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          callerUserId = payload.sub;
-          if (!callerUserId) throw new Error("No user ID in token");
-        }
-      } catch (e) {
-        console.error("[tournament-refund-entry] JWT validation failed:", e);
+      // Verify JWT signature via Supabase Auth (prevents JWT forgery attacks)
+      const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+      if (authError || !user) {
+        console.error("[tournament-refund-entry] JWT verification failed:", authError?.message);
         return new Response(
           JSON.stringify({ success: false, error: "Invalid token" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      callerUserId = user.id;
     }
 
     // --- Parse request ---

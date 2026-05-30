@@ -186,6 +186,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Method not allowed" }, 405);
     }
 
+    // Auth: only service-role or cron secret are accepted — no public access
+    const authHeader = req.headers.get("Authorization");
+    const cronHeader = req.headers.get("X-Cron-Secret");
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const authorized =
+      authHeader === `Bearer ${supabaseServiceKey}` ||
+      (!!cronSecret && cronHeader === cronSecret);
+    if (!authorized) {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+
     const body = await req.json();
 
     // Determine mode based on payload

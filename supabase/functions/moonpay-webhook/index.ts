@@ -305,7 +305,14 @@ serve(async (req: Request) => {
     const signature = req.headers.get("moonpay-signature") || "";
     const isValid = await verifySignature(rawBody, signature);
 
-    if (!isValid && MOONPAY_WEBHOOK_SECRET) {
+    if (!MOONPAY_WEBHOOK_SECRET) {
+      console.error("MOONPAY_WEBHOOK_SECRET not configured — webhook disabled for safety");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!isValid) {
       console.error("Invalid webhook signature");
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,

@@ -281,6 +281,20 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth: only service-role or cron secret are accepted — no public access
+  const authHeader = req.headers.get("Authorization");
+  const cronHeader = req.headers.get("X-Cron-Secret");
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const authorized =
+    authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` ||
+    (!!cronSecret && cronHeader === cronSecret);
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   console.log("[process-house-payout] Request received");
 
   try {

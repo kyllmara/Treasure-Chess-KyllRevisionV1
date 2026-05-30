@@ -315,23 +315,23 @@ Deno.serve(async (req) => {
     let callerUserId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
-      try {
-        const parts = authHeader.substring(7).split(".");
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          // service_role bypass — internal calls from cron/edge functions
-          if (payload.role === "service_role") {
-            callerUserId = "service_role";
-          } else if (payload.sub) {
-            const { data: callerProfile } = await supabase
-              .from("profiles")
-              .select("id")
-              .eq("auth_user_id", payload.sub)
-              .single();
-            callerUserId = callerProfile?.id ?? null;
-          }
+      const token = authHeader.substring(7);
+      // Direct service key comparison is the only safe way to grant service_role access.
+      // Never decode JWT claims without signature verification — they can be forged.
+      if (token === supabaseServiceKey) {
+        callerUserId = "service_role";
+      } else {
+        // Verify JWT signature via Supabase Auth
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (!authError && user) {
+          const { data: callerProfile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("auth_user_id", user.id)
+            .single();
+          callerUserId = callerProfile?.id ?? null;
         }
-      } catch (_) {}
+      }
     }
 
     let body;

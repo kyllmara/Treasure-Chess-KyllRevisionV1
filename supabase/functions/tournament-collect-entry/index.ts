@@ -80,30 +80,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    let userId: string | null = null;
-
-    try {
-      const parts = token.split(".");
-      if (parts.length !== 3) throw new Error("Invalid JWT format");
-      const payload = JSON.parse(atob(parts[1]));
-
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Token expired" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      userId = payload.sub;
-      if (!userId) throw new Error("No user ID in token");
-    } catch (e) {
-      console.error("[tournament-collect-entry] JWT validation failed:", e);
+    // Verify JWT signature via Supabase Auth (prevents JWT forgery attacks)
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !user) {
+      console.error("[tournament-collect-entry] JWT verification failed:", authError?.message);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const userId = user.id;
 
     // --- Parse request ---
     const body: CollectEntryRequest = await req.json();

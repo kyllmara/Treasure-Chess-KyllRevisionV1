@@ -197,52 +197,22 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     console.log("[relay] Token length:", token.length);
 
-    // Decode and validate JWT payload
+    // Verify JWT signature via Supabase Auth (prevents JWT forgery attacks)
     let userId: string | null = null;
     let userEmail: string | null = null;
 
-    try {
-      const parts = token.split(".");
-      if (parts.length !== 3) {
-        throw new Error("Invalid JWT format");
-      }
-
-      // Decode the payload (middle part)
-      const payload = JSON.parse(atob(parts[1]));
-      console.log("[relay] JWT payload:", {
-        sub: payload.sub,
-        email: payload.email,
-        exp: payload.exp,
-        iat: payload.iat,
-        role: payload.role,
-      });
-
-      // Check if token is expired
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) {
-        console.error("[relay] Token expired:", { exp: payload.exp, now });
-        return new Response(
-          JSON.stringify({ success: false, error: "Token expired" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Extract user info from JWT
-      userId = payload.sub;
-      userEmail = payload.email;
-
-      if (!userId) {
-        throw new Error("No user ID in token");
-      }
-
-      console.log("[relay] Token validated successfully:", { userId, userEmail });
-    } catch (e) {
-      console.error("[relay] JWT decode/validation failed:", e);
+    const supabaseForAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { user: authUser }, error: authError } = await supabaseForAuth.auth.getUser(token);
+    if (authError || !authUser) {
+      console.error("[relay] JWT verification failed:", authError?.message);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    userId = authUser.id;
+    userEmail = authUser.email ?? null;
+    console.log("[relay] Token verified:", { userId });
 
     // Create Supabase client with service role for database operations
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -270,8 +240,11 @@ serve(async (req) => {
         );
       }
 
-      // Get vault address
-      const VAULT_ADDRESS = Deno.env.get("PLATFORM_VAULT_ADDRESS") || "0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b";
+      // Get vault address from database — never use a hardcoded fallback
+      const { data: VAULT_ADDRESS, error: vaultErr } = await supabase.rpc("get_vault_address");
+      if (vaultErr || !VAULT_ADDRESS) {
+        throw new Error("Vault address not configured in database");
+      }
 
       // Initialize provider and platform wallet
       const provider = new JsonRpcProvider(BASE_RPC_URL);

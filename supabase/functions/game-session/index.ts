@@ -330,17 +330,37 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname.split("/").filter(Boolean);
 
+    // Verify JWT for all POST requests and resolve the caller's profile ID
+    let authenticatedProfileId: string | null = null;
+    if (req.method === "POST") {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      const token = authHeader.substring(7);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) {
+        return jsonResponse({ error: "Unauthorized" }, 401);
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .single();
+      authenticatedProfileId = profile?.id ?? null;
+    }
+
     // Route handling
     if (req.method === "POST" && path[0] === "validate-move") {
-      return handleValidateMove(supabase, await req.json());
+      return handleValidateMove(supabase, await req.json(), authenticatedProfileId);
     }
 
     if (req.method === "POST" && path[0] === "sync-time") {
-      return handleSyncTime(supabase, await req.json());
+      return handleSyncTime(supabase, await req.json(), authenticatedProfileId);
     }
 
     if (req.method === "POST" && path[0] === "end-game") {
-      return handleEndGame(supabase, await req.json());
+      return handleEndGame(supabase, await req.json(), authenticatedProfileId);
     }
 
     if (req.method === "GET" && path[0] === "state" && path[1]) {
@@ -363,10 +383,16 @@ Deno.serve(async (req) => {
 
 async function handleValidateMove(
   supabase: any,
-  request: ValidateMoveRequest
+  request: ValidateMoveRequest,
+  authenticatedProfileId: string | null
 ): Promise<Response> {
   const { gameId, playerId, from, to, promotion, clientTimestamp, timeRemainingMs } =
     request;
+
+  // Verify the caller is the player they claim to be
+  if (!authenticatedProfileId || authenticatedProfileId !== playerId) {
+    return jsonResponse({ valid: false, error: "Unauthorized" }, 403);
+  }
 
   // Fetch game
   const { data: game, error: gameError } = await supabase
@@ -498,9 +524,15 @@ async function handleValidateMove(
 
 async function handleSyncTime(
   supabase: any,
-  request: SyncTimeRequest
+  request: SyncTimeRequest,
+  authenticatedProfileId: string | null
 ): Promise<Response> {
   const { gameId, playerId, whiteTimeMs, blackTimeMs } = request;
+
+  // Verify the caller is the player they claim to be
+  if (!authenticatedProfileId || authenticatedProfileId !== playerId) {
+    return jsonResponse({ error: "Unauthorized" }, 403);
+  }
 
   // Verify player is in game
   const { data: game } = await supabase
@@ -535,9 +567,15 @@ async function handleSyncTime(
 
 async function handleEndGame(
   supabase: any,
-  request: EndGameRequest
+  request: EndGameRequest,
+  authenticatedProfileId: string | null
 ): Promise<Response> {
   const { gameId, playerId, reason, result } = request;
+
+  // Verify the caller is the player they claim to be
+  if (!authenticatedProfileId || authenticatedProfileId !== playerId) {
+    return jsonResponse({ error: "Unauthorized" }, 403);
+  }
 
   // Fetch game
   const { data: game, error } = await supabase

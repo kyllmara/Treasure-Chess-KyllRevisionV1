@@ -87,27 +87,12 @@ serve(async (req) => {
       console.log("[submit-game-result] Token length:", token.length);
       console.log("[submit-game-result] Service key length:", SUPABASE_SERVICE_KEY?.length);
 
-      // Check if token matches service role key directly
+      // Only accept the raw service key — no JWT decoding.
+      // An attacker could forge a JWT with role=service_role since we cannot
+      // verify the signature here; the opaque key comparison is the only safe check.
       if (token === SUPABASE_SERVICE_KEY) {
         console.log("[submit-game-result] Direct service key match");
         isServiceRole = true;
-      } else {
-        // Decode JWT to check role (service_role has special permissions)
-        try {
-          // Check if it looks like a JWT (has 3 parts)
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            console.log("[submit-game-result] JWT role:", payload.role);
-            if (payload.role === 'service_role') {
-              isServiceRole = true;
-            }
-          } else {
-            console.log("[submit-game-result] Token is not a JWT (parts:", parts.length, ")");
-          }
-        } catch (e) {
-          console.log("[submit-game-result] JWT decode error:", e);
-        }
       }
     }
 

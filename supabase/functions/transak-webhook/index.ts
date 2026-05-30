@@ -347,7 +347,14 @@ serve(async (req: Request) => {
 
   try {
     // Verify authentication
-    if (!verifyAuthentication(req) && TRANSAK_WEBHOOK_SECRET) {
+    if (!TRANSAK_WEBHOOK_SECRET && !TRANSAK_API_KEY) {
+      console.error("Transak webhook secrets not configured — webhook disabled for safety");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!verifyAuthentication(req)) {
       console.error("Invalid webhook authentication");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
