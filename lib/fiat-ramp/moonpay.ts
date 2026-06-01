@@ -20,6 +20,9 @@ import { TCT_TO_USD_RATE, USDC_TO_TCT } from "./types";
 
 // Environment configuration
 const MOONPAY_API_KEY = process.env.EXPO_PUBLIC_MOONPAY_API_KEY || "";
+// MOONPAY_SECRET_KEY intentionally uses a non-EXPO_PUBLIC_ prefix so Expo
+// strips it at bundle time — it resolves to "" in the client bundle.
+// It is only available server-side (Supabase Edge Functions).
 const MOONPAY_SECRET_KEY = process.env.MOONPAY_SECRET_KEY || "";
 const MOONPAY_WEBHOOK_SECRET = process.env.MOONPAY_WEBHOOK_SECRET || "";
 const MOONPAY_ENV = (process.env.EXPO_PUBLIC_MOONPAY_ENV || "sandbox") as
@@ -32,7 +35,9 @@ const MOONPAY_ENV = (process.env.EXPO_PUBLIC_MOONPAY_ENV || "sandbox") as
 export const moonpayConfig: FiatRampConfig = {
   provider: "moonpay",
   apiKey: MOONPAY_API_KEY,
-  secretKey: MOONPAY_SECRET_KEY,
+  // serverOnlySecretKey is always "" in the client bundle (non-EXPO_PUBLIC_ env
+  // var stripped by Expo). Populated only in Edge Function environments.
+  serverOnlySecretKey: MOONPAY_SECRET_KEY,
   webhookSecret: MOONPAY_WEBHOOK_SECRET,
   environment: MOONPAY_ENV,
   baseUrl:
@@ -122,7 +127,7 @@ export function generateBuyWidgetUrl(params: BuyWidgetParams): string {
   const url = `${baseUrl}?${queryParams.toString()}`;
 
   // Sign the URL if we have a secret key (for production security)
-  if (moonpayConfig.secretKey) {
+  if (moonpayConfig.serverOnlySecretKey) {
     return signWidgetUrl(url);
   }
 
@@ -168,7 +173,7 @@ export function generateSellWidgetUrl(params: SellWidgetParams): string {
 
   const url = `${baseUrl}?${queryParams.toString()}`;
 
-  if (moonpayConfig.secretKey) {
+  if (moonpayConfig.serverOnlySecretKey) {
     return signWidgetUrl(url);
   }
 
@@ -179,7 +184,7 @@ export function generateSellWidgetUrl(params: SellWidgetParams): string {
  * Sign widget URL with HMAC-SHA256 for security
  */
 function signWidgetUrl(url: string): string {
-  if (!moonpayConfig.secretKey) {
+  if (!moonpayConfig.serverOnlySecretKey) {
     return url;
   }
 

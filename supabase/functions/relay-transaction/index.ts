@@ -129,31 +129,6 @@ interface RelayResponse {
   gasUsed?: string;
 }
 
-// Rate limiting
-const RATE_LIMIT_WINDOW = 60 * 1000;
-const RATE_LIMIT_MAX = 10;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(address: string): boolean {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(address.toLowerCase());
-
-  if (!userLimit || now > userLimit.resetAt) {
-    rateLimitMap.set(address.toLowerCase(), {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW,
-    });
-    return true;
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  userLimit.count++;
-  return true;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -232,8 +207,12 @@ serve(async (req) => {
         throw new Error("Missing required fields for payEntryFee");
       }
 
-      // Rate limiting
-      if (!checkRateLimit(userAddress)) {
+      // Rate limiting (DB-backed — survives cold starts)
+      const { data: rateLimitOk } = await supabase.rpc('check_and_increment_relay_rate', {
+        p_address: userAddress,
+        p_limit: 10,
+      });
+      if (!rateLimitOk) {
         return new Response(
           JSON.stringify({ success: false, error: "Rate limit exceeded" }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -332,8 +311,12 @@ serve(async (req) => {
       throw new Error("Invalid forwardRequest: missing required fields");
     }
 
-    // Rate limiting by user address
-    if (!checkRateLimit(forwardRequest.from)) {
+    // Rate limiting by user address (DB-backed — survives cold starts)
+    const { data: rateLimitOk } = await supabase.rpc('check_and_increment_relay_rate', {
+      p_address: forwardRequest.from,
+      p_limit: 10,
+    });
+    if (!rateLimitOk) {
       return new Response(
         JSON.stringify({ success: false, error: "Rate limit exceeded" }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }

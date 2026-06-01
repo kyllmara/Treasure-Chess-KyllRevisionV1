@@ -72,7 +72,6 @@ export interface HouseChallengeStoreActions {
   startChallenge: (challengeId: string, entrySessionId?: string) => Promise<StartHouseChallengeResult>;
   completeChallenge: (
     attemptId: string,
-    objectiveMet: boolean,
     movesMade: number,
     finalFen?: string,
     pgn?: string,
@@ -262,7 +261,6 @@ export const useHouseChallengeStore = create<HouseChallengeStore>()(
 
     completeChallenge: async (
       attemptId: string,
-      objectiveMet: boolean,
       movesMade: number,
       finalFen?: string,
       pgn?: string,
@@ -280,7 +278,6 @@ export const useHouseChallengeStore = create<HouseChallengeStore>()(
       try {
         const result = await state._service.completeChallenge(
           attemptId,
-          objectiveMet,
           movesMade,
           finalFen,
           pgn,

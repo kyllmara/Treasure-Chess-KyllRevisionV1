@@ -53,11 +53,13 @@ async function fetchOnChainUsdcBalance(walletAddress: string): Promise<number> {
     const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0");
     const callData = BALANCE_OF_SELECTOR + paddedAddress;
 
-    console.log("[useHomeStats] Fetching USDC balance", {
-      rpcUrl: RPC_URL,
-      usdcContract: USDC_CONTRACT_ADDRESS,
-      walletAddress
-    });
+    if (__DEV__) {
+      console.log("[useHomeStats] Fetching USDC balance", {
+        rpcUrl: RPC_URL,
+        usdcContract: USDC_CONTRACT_ADDRESS,
+        walletAddress,
+      });
+    }
 
     const response = await fetch(RPC_URL, {
       method: "POST",
@@ -341,15 +343,17 @@ export function useHomeStats(): UseHomeStatsResult {
   }, []);
 
   const updateAnimatedValues = useCallback((newStats: HomeStats, prevStats: HomeStats | null) => {
-    console.log("[useHomeStats] updateAnimatedValues called", {
-      newAvailableTct: newStats.availableTct,
-      prevAvailableTct: prevStats?.availableTct,
-      hasPrevStats: !!prevStats,
-    });
+    if (__DEV__) {
+      console.log("[useHomeStats] updateAnimatedValues called", {
+        newAvailableTct: newStats.availableTct,
+        prevAvailableTct: prevStats?.availableTct,
+        hasPrevStats: !!prevStats,
+      });
+    }
 
     if (!prevStats) {
       // First load - set values immediately without animation
-      console.log("[useHomeStats] First load, setting values immediately:", newStats.availableTct);
+      if (__DEV__) console.log("[useHomeStats] First load, setting values immediately:", newStats.availableTct);
       animatedValues.eloRating.setValue(newStats.eloRating);
       animatedValues.availableTct.setValue(newStats.availableTct);
       animatedValues.gamesWon.setValue(newStats.gamesWon);
@@ -372,7 +376,7 @@ export function useHomeStats(): UseHomeStatsResult {
     }
 
     if (newStats.availableTct !== prevStats.availableTct) {
-      console.log("[useHomeStats] Balance changed, animating:", prevStats.availableTct, "->", newStats.availableTct);
+      if (__DEV__) console.log("[useHomeStats] Balance changed, animating:", prevStats.availableTct, "->", newStats.availableTct);
       animateValue(
         animatedValues.availableTct,
         newStats.availableTct,
@@ -423,7 +427,7 @@ export function useHomeStats(): UseHomeStatsResult {
     }
 
     try {
-      console.log("[useHomeStats] Fetching stats with walletAddress:", walletAddress);
+      if (__DEV__) console.log("[useHomeStats] Fetching stats with walletAddress:", walletAddress);
 
       // Fetch profile, balance, and on-chain USDC in parallel
       const [profileResult, balanceResult, onChainUsdcBalance] = await Promise.all([
@@ -449,7 +453,7 @@ export function useHomeStats(): UseHomeStatsResult {
 
       // Convert on-chain USDC to TCT (1 USDC = 25 TCT)
       const onChainTctBalance = Math.floor(onChainUsdcBalance * USDC_TO_TCT_RATE);
-      console.log("[useHomeStats] On-chain USDC:", onChainUsdcBalance, "= TCT:", onChainTctBalance);
+      if (__DEV__) console.log("[useHomeStats] On-chain USDC:", onChainUsdcBalance, "= TCT:", onChainTctBalance);
 
       const homeStats = mapToHomeStats(profile, balance, onChainTctBalance);
 

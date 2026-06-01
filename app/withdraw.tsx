@@ -477,7 +477,7 @@ export default function WithdrawScreen() {
         return;
       }
 
-      const idempotencyKey = `withdraw_${profile.id}_${Date.now()}`;
+      const idempotencyKey = `withdraw_${profile.id}_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 
       const { data, error } = await supabase.rpc("request_withdrawal", {
         p_user_id: profile.id,

@@ -148,7 +148,7 @@ export function useWallet(): UseWalletReturn {
       if (address) {
         const usdcBalance = await fetchOnChainUsdcBalance(address);
         setOnChainUsdcBalance(usdcBalance);
-        console.log("[useWallet] On-chain USDC balance:", usdcBalance, "for address:", address);
+        if (__DEV__) console.log("[useWallet] On-chain USDC balance:", usdcBalance, "for address:", address);
       }
 
       // Fetch locked balance from Supabase (for active games/challenges)

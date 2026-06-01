@@ -169,6 +169,22 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Pre-validate: all winners must have wallet addresses before we send any transactions
+    const missingWallets = prizes
+      .map((p: any) => ({ place: p.place, user_id: p.user_id }))
+      .filter((p: any) => !walletMap.get(p.user_id));
+
+    if (missingWallets.length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Cannot distribute prizes: some winners have not registered wallet addresses",
+          missingWallets,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // --- Distribute prizes on-chain ---
     const distributed: Array<{
       place: number;
@@ -189,12 +205,7 @@ Deno.serve(async (req: Request) => {
     }
 
     for (const prize of prizes) {
-      const winnerWallet = walletMap.get(prize.user_id);
-      if (!winnerWallet) {
-        console.error(`[tournament-distribute-prizes] No wallet for user ${prize.user_id} (place ${prize.place})`);
-        errors.push({ place: prize.place, error: "No wallet address found" });
-        continue;
-      }
+      const winnerWallet = walletMap.get(prize.user_id)!;
 
       const usdcAmount = prize.amount_tct / tctSellRate;
       const usdcWei = parseUnits(usdcAmount.toFixed(6), 6);

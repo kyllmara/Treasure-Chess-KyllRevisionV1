@@ -1537,7 +1537,7 @@ const tutorialStyles = StyleSheet.create({
 
 export default function AdminHouseChallengesScreen() {
   return (
-    <AdminGate featureName="House Challenges">
+    <AdminGate featureName="House Challenges" requireSuperAdmin>
       <AdminHouseChallengesContent />
     </AdminGate>
   );

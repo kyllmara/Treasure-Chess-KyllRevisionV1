@@ -143,22 +143,22 @@ The PostgreSQL function that marks a house challenge as won and creates a payout
 ---
 
 ### HIGH-03: Blanket `GRANT ALL ON ALL TABLES` to `anon` and `authenticated`
-**Status:** Deferred (architectural change required)  
+**Status:** Fixed (migration `122_revoke_blanket_grants.sql`)  
 **File:** `supabase/migrations/001_initial_schema.sql`
 
 The initial migration grants SELECT, INSERT, UPDATE, DELETE on every table (including future tables) to both unauthenticated and authenticated users. Supabase RLS policies are the only remaining defense layer. Any table created without an explicit restrictive RLS policy is fully exposed.
 
-**Action required:** Replace blanket grants with per-table explicit grants as part of a schema hardening pass.
+**Remediation:** Blanket grants revoked; per-table explicit grants applied as part of schema hardening pass. Migration 122.
 
 ---
 
 ### HIGH-04: Admin Functions Callable by All Authenticated Users
-**Status:** Deferred (requires admin panel refactor)  
+**Status:** Fixed (migration `122_revoke_blanket_grants.sql`)  
 **File:** `supabase/migrations/053_fix_admin_permissions_and_queries.sql`
 
 Functions including `admin_adjust_balance`, `admin_ban_user`, and `admin_grant_admin` are callable by any authenticated user. Protection relies entirely on an internal `is_user_admin()` check. A bug in that check grants every user full admin access. The `admin_adjust_balance` function exposed to all users is especially sensitive.
 
-**Action required:** Admin functions should be restricted to `service_role` only and called through a secure backend proxy.
+**Remediation:** Admin RPCs restricted to `service_role` only; execute privileges revoked from `authenticated`. Migration 122.
 
 ---
 
@@ -216,12 +216,12 @@ These functions — which trigger real USDC transfers on-chain — had no auth c
 ---
 
 ### MED-03: In-Memory Rate Limiting Resets on Cold Start
-**Status:** Open  
+**Status:** Fixed (migration `123_relay_rate_limit_table.sql` + relay-transaction update)  
 **File:** `supabase/functions/relay-transaction/index.ts`
 
 Per-address rate limiting for the gasless relay is stored in a module-level `Map`. Every cold start resets counters to zero. Supabase Edge Functions cold-start frequently; an attacker can force bursts of gasless transactions by timing requests around cold starts, draining the relay wallet's ETH.
 
-**Action required:** Move rate limit tracking to a database table.
+**Remediation:** Rate limit tracking moved from in-memory `Map` to a persistent database table. Migration 123 + relay-transaction edge function updated to read/write DB counters.
 
 ---
 
@@ -236,12 +236,12 @@ The admin function for updating TCT conversion rates accepted values up to 10,00
 ---
 
 ### MED-05: Win/Loss in House Challenges Determined by Client
-**Status:** Partially mitigated (ownership check added; server-side validation deferred)  
+**Status:** Fixed (complete-house-challenge edge function + migration `121_server_side_house_challenge.sql`)  
 **File:** `supabase/migrations/106_house_challenges.sql`
 
 The `complete_house_challenge` function accepts `p_objective_met BOOLEAN` — the caller declares whether they won. A modified client can always pass `true`. The chess engine logic runs client-side and its result is trusted without server verification.
 
-**Action required:** Move win determination fully server-side (compute from submitted FEN/PGN in the edge function; never accept win status as a client parameter).
+**Remediation:** Win determination moved fully server-side. The `complete-house-challenge` edge function now receives the submitted PGN/FEN, validates the objective against it server-side, and computes the result independently. Migration 121.
 
 ---
 
@@ -270,12 +270,12 @@ No constraint prevented creating a game where `white_player_id = black_player_id
 ---
 
 ### LOW-03: Wallet Address Validation Does Not Enforce EIP-55 Checksum
-**Status:** Open  
+**Status:** Fixed (validation.ts update)  
 **File:** `lib/security/validation.ts`
 
 Ethereum address validation accepts any hex string matching the address format but does not verify the EIP-55 mixed-case checksum. Fat-finger or spoofed addresses can be stored in the database.
 
-**Action required:** Use `ethers.getAddress(address)` inside the Zod `refine` callback — it throws on invalid checksum.
+**Remediation:** Added `.refine()` calling `getAddress()` (ethers v6) inside `ethereumAddressSchema`. Addresses with an invalid mixed-case checksum are now rejected before reaching the database.
 
 ---
 
@@ -488,13 +488,13 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 |----------|-------|-------|-----------------|
 | Planted Backdoors | 2 | 2 | 0 |
 | Critical | 5 | 5 | 0 |
-| High | 6 | 4 | 2 (HIGH-03, HIGH-04) |
-| Medium | 5 | 4 | 1 (MED-03, MED-05 partial) |
-| Low | 4 | 3 | 1 (LOW-03) |
+| High | 6 | 6 | 0 |
+| Medium | 5 | 5 | 0 |
+| Low | 4 | 4 | 0 |
 | Informational | 4 | 1 | 3 |
 | Infrastructure | 7 | 7 | 0 |
 | Matchmaking | 9 | 8 | 1 (MATCH-05 dead code) |
-| **Total** | **42** | **34** | **8** |
+| **Total** | **42** | **39** | **3** |
 
 ---
 
@@ -524,11 +524,6 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 1. **Investigate `0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b` on basescan.org** — determine if house challenge entry fees were diverted during alpha.
 2. **Investigate `0xDE50B9A124269a06542bBc4e08De71a5e6cFa438` on basescan.org** — determine if wallet payment USDC was diverted.
 3. **Set `CRON_SECRET` in Supabase project secrets** — required for `deposit-monitor`, `process-withdrawals`, `process-house-payout`, `process-reward-payout`, and `matchmaking` to accept cron calls.
-4. **Apply migrations 118 and 119** via `supabase db push` or SQL editor.
+4. **Apply migrations 118–123** via `supabase db push` or SQL editor.
 5. **Delete `magic-auth` edge function** from Supabase dashboard (removed from repo but may still be deployed).
 6. **Insert `platform_vault` row** in `platform_config` with the correct vault address before deploying relay-transaction.
-7. HIGH-03: Revoke blanket `GRANT ALL ON ALL TABLES` from `anon`/`authenticated`.
-8. HIGH-04: Restrict admin function grants to `service_role` only.
-9. MED-03: Move relay rate limiting from in-memory to database.
-10. MED-05: Move house challenge win determination fully server-side.
-11. LOW-03: Add EIP-55 checksum validation to Ethereum address input.

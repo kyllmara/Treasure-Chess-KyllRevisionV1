@@ -222,7 +222,6 @@ export class HouseChallengeService {
    */
   async completeChallenge(
     attemptId: string,
-    objectiveMet: boolean,
     movesMade: number,
     finalFen?: string,
     pgn?: string,
@@ -230,14 +229,15 @@ export class HouseChallengeService {
     queenSacrificed?: boolean
   ): Promise<CompleteHouseChallengeResult> {
     try {
-      const { data, error } = await supabase.rpc("complete_house_challenge", {
-        p_attempt_id: attemptId,
-        p_objective_met: objectiveMet,
-        p_moves_made: movesMade,
-        p_final_fen: finalFen || null,
-        p_pgn: pgn || null,
-        p_checkmating_piece: checkmatingPiece || null,
-        p_queen_sacrificed: queenSacrificed || false,
+      const { data, error } = await supabase.functions.invoke("complete-house-challenge", {
+        body: {
+          attempt_id: attemptId,
+          final_fen: finalFen || null,
+          pgn: pgn || null,
+          moves_made: movesMade,
+          checkmating_piece: checkmatingPiece || null,
+          queen_sacrificed: queenSacrificed || false,
+        },
       });
 
       if (error) {

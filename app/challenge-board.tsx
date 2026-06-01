@@ -10,7 +10,7 @@
  * - Create/Accept challenge flow
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
@@ -21,6 +21,11 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -36,8 +41,9 @@ import {
   X,
   Key,
   ArrowLeft,
+  UserSearch,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import type { HouseChallenge } from "@/types/houseChallenge";
 import { getDifficultyColor } from "@/types/houseChallenge";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +63,11 @@ import {
   getTimeControlCategory,
   isExpiringSoon,
 } from "@/lib/challenges";
+import {
+  FriendChallengeService,
+  UserSearchResult,
+} from "@/lib/friendChallenge";
+import { AvatarDisplay } from "@/components/AvatarPicker";
 
 type TabType = "house" | "p2p" | "history";
 
@@ -64,6 +75,7 @@ const TCT_TO_USD = 0.04;
 
 function ChallengeBoardContent() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { profile } = useAuth();
 
   // Get TCT balance from wallet store (single source of truth)
@@ -98,8 +110,87 @@ function ChallengeBoardContent() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [joiningChallengeId, setJoiningChallengeId] = useState<string | null>(null);
 
+  // Friend search modal state
+  const [showFriendSearch, setShowFriendSearch] = useState(false);
+  const [friendSearchQuery, setFriendSearchQuery] = useState("");
+  const [friendSearchResults, setFriendSearchResults] = useState<UserSearchResult[]>([]);
+  const [friendSearchLoading, setFriendSearchLoading] = useState(false);
+  const friendSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Filter state
   const [filters, setFilters] = useState<ChallengeFilters>({});
+
+  // Auto-open friend search modal if navigated with openFriendSearch=true
+  useEffect(() => {
+    if (params.openFriendSearch === "true") {
+      setShowFriendSearch(true);
+    }
+  }, [params.openFriendSearch]);
+
+  // Debounced user search
+  const handleFriendSearchChange = useCallback(
+    (query: string) => {
+      setFriendSearchQuery(query);
+      if (friendSearchDebounceRef.current) {
+        clearTimeout(friendSearchDebounceRef.current);
+      }
+      if (!query || query.length < 2) {
+        setFriendSearchResults([]);
+        setFriendSearchLoading(false);
+        return;
+      }
+      setFriendSearchLoading(true);
+      friendSearchDebounceRef.current = setTimeout(async () => {
+        if (!profile?.id) {
+          setFriendSearchLoading(false);
+          return;
+        }
+        try {
+          const service = new FriendChallengeService(
+            profile.id,
+            profile.username || "",
+            profile.avatar_index ?? 0,
+            profile.elo_rating ?? 1200
+          );
+          const results = await service.searchUsers(query);
+          setFriendSearchResults(results);
+        } catch (err) {
+          console.error("[ChallengeBoard] Friend search error:", err);
+          setFriendSearchResults([]);
+        } finally {
+          setFriendSearchLoading(false);
+        }
+      }, 300);
+    },
+    [profile]
+  );
+
+  const handleSelectFriend = useCallback(
+    (user: UserSearchResult) => {
+      setShowFriendSearch(false);
+      setFriendSearchQuery("");
+      setFriendSearchResults([]);
+      router.push({
+        pathname: "/challenge-player",
+        params: {
+          playerId: user.id,
+          playerName: user.username,
+          playerRating: String(user.eloRating),
+          playerAvatar: String(user.avatarIndex),
+        },
+      });
+    },
+    [router]
+  );
+
+  const handleCloseFriendSearch = useCallback(() => {
+    setShowFriendSearch(false);
+    setFriendSearchQuery("");
+    setFriendSearchResults([]);
+    if (friendSearchDebounceRef.current) {
+      clearTimeout(friendSearchDebounceRef.current);
+    }
+  }, []);
 
   // Calculate active filter count
   const activeFilterCount = useMemo(() => {
@@ -960,26 +1051,37 @@ function ChallengeBoardContent() {
 
           {/* Challenge Action Buttons (P2P only) */}
           {selectedTab === "p2p" && (
-            <View style={styles.challengeActionButtons}>
+            <>
               <TouchableOpacity
-                style={styles.createChallengeButton}
-                onPress={() => router.push("/create-challenge" as any)}
+                style={styles.challengeFriendButton}
+                onPress={() => setShowFriendSearch(true)}
               >
-                <Plus size={20} color="#0F0F1E" />
-                <Text style={styles.createChallengeButtonText}>
-                  Create Challenge
+                <UserSearch size={20} color="#0F0F1E" />
+                <Text style={styles.challengeFriendButtonText}>
+                  Challenge a Friend
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.joinByCodeButton}
-                onPress={() => router.push("/join-challenge" as any)}
-              >
-                <Key size={18} color="#FFD700" />
-                <Text style={styles.joinByCodeButtonText}>
-                  Join by Code
-                </Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.challengeActionButtons}>
+                <TouchableOpacity
+                  style={styles.createChallengeButton}
+                  onPress={() => router.push("/create-challenge" as any)}
+                >
+                  <Plus size={20} color="#0F0F1E" />
+                  <Text style={styles.createChallengeButtonText}>
+                    Create Challenge
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.joinByCodeButton}
+                  onPress={() => router.push("/join-challenge" as any)}
+                >
+                  <Key size={18} color="#FFD700" />
+                  <Text style={styles.joinByCodeButtonText}>
+                    Join by Code
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
 
           {/* Content */}
@@ -1041,6 +1143,117 @@ function ChallengeBoardContent() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Friend Search Modal */}
+      <Modal
+        visible={showFriendSearch}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCloseFriendSearch}
+      >
+        <KeyboardAvoidingView
+          style={friendSearchStyles.overlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <TouchableOpacity
+            style={friendSearchStyles.backdrop}
+            activeOpacity={1}
+            onPress={handleCloseFriendSearch}
+          />
+          <View style={friendSearchStyles.sheet}>
+            <View style={friendSearchStyles.sheetHandle} />
+
+            {/* Sheet Header */}
+            <View style={friendSearchStyles.sheetHeader}>
+              <View style={friendSearchStyles.sheetTitleRow}>
+                <UserSearch size={22} color="#FFD700" />
+                <Text style={friendSearchStyles.sheetTitle}>Challenge a Friend</Text>
+              </View>
+              <TouchableOpacity
+                style={friendSearchStyles.sheetCloseButton}
+                onPress={handleCloseFriendSearch}
+              >
+                <X size={20} color="#A0A0A0" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View style={friendSearchStyles.searchInputContainer}>
+              <UserSearch size={16} color="#A0A0A0" style={friendSearchStyles.searchIcon} />
+              <TextInput
+                style={friendSearchStyles.searchInput}
+                placeholder="Search by username..."
+                placeholderTextColor="#666"
+                value={friendSearchQuery}
+                onChangeText={handleFriendSearchChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+              />
+            </View>
+
+            {/* Results */}
+            <View style={friendSearchStyles.resultsContainer}>
+              {friendSearchLoading ? (
+                <View style={friendSearchStyles.centeredState}>
+                  <ActivityIndicator size="small" color="#FFD700" />
+                  <Text style={friendSearchStyles.centeredStateText}>Searching...</Text>
+                </View>
+              ) : friendSearchQuery.length >= 2 && friendSearchResults.length === 0 ? (
+                <View style={friendSearchStyles.centeredState}>
+                  <Users size={36} color="#444" />
+                  <Text style={friendSearchStyles.centeredStateText}>No players found</Text>
+                  <Text style={friendSearchStyles.centeredStateSubtext}>
+                    Try a different username
+                  </Text>
+                </View>
+              ) : friendSearchQuery.length < 2 ? (
+                <View style={friendSearchStyles.centeredState}>
+                  <Text style={friendSearchStyles.centeredStateSubtext}>
+                    Type at least 2 characters to search
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={friendSearchResults}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={friendSearchStyles.resultRow}
+                      onPress={() => handleSelectFriend(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={friendSearchStyles.resultAvatarWrapper}>
+                        <AvatarDisplay
+                          index={item.avatarIndex ?? 0}
+                          size={44}
+                          showBorder
+                        />
+                        {item.isOnline && (
+                          <View style={friendSearchStyles.onlineDot} />
+                        )}
+                      </View>
+                      <View style={friendSearchStyles.resultInfo}>
+                        <Text style={friendSearchStyles.resultUsername}>
+                          {item.username}
+                        </Text>
+                        <Text style={friendSearchStyles.resultElo}>
+                          {item.eloRating} ELO
+                        </Text>
+                      </View>
+                      <View style={friendSearchStyles.challengeArrow}>
+                        <Sword size={16} color="#FFD700" />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -1177,6 +1390,22 @@ const styles = StyleSheet.create({
   },
   tabBadgeText: {
     fontSize: 11,
+    fontWeight: "700",
+    color: "#0F0F1E",
+  },
+  challengeFriendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#4ECDC4",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  challengeFriendButtonText: {
+    fontSize: 15,
     fontWeight: "700",
     color: "#0F0F1E",
   },
@@ -1637,3 +1866,149 @@ export default function ChallengeBoardScreen() {
     </AuthGate>
   );
 }
+
+const friendSearchStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  sheet: {
+    backgroundColor: "#1A1A2E",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+    maxHeight: "85%",
+    borderTopWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.2)",
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.08)",
+  },
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  sheetCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  searchIcon: {
+    flexShrink: 0,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#FFFFFF",
+    paddingVertical: 14,
+  },
+  resultsContainer: {
+    minHeight: 200,
+    maxHeight: 420,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  centeredState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 10,
+  },
+  centeredStateText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#A0A0A0",
+  },
+  centeredStateSubtext: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+  },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    gap: 12,
+  },
+  resultAvatarWrapper: {
+    position: "relative",
+  },
+  onlineDot: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#4ADE80",
+    borderWidth: 2,
+    borderColor: "#1A1A2E",
+  },
+  resultInfo: {
+    flex: 1,
+  },
+  resultUsername: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 2,
+  },
+  resultElo: {
+    fontSize: 13,
+    color: "#FFD700",
+    fontWeight: "600",
+  },
+  challengeArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 215, 0, 0.3)",
+  },
+});

@@ -385,7 +385,7 @@ Deno.serve(async (req) => {
         p_status: "completed",
         p_result: result,
         p_winner_id: winnerId || null,
-        p_end_reason: endReason || "unknown",
+        p_end_reason: endReason || "abandon",
         p_final_fen: finalFen || gameRecord.current_fen || null,
       });
 
@@ -532,7 +532,7 @@ Deno.serve(async (req) => {
       blackEloCalc.ratingChange,
       moves || [],
       gameRecord.result,
-      gameRecord.end_reason || "unknown",
+      gameRecord.end_reason || "abandon",
       gameRecord.time_control_seconds || 300,
       gameRecord.increment_seconds || 0,
       gameRecord.wager_tct || 0,

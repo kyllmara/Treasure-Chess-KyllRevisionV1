@@ -390,7 +390,6 @@ export default function HouseChallengeGameScreen() {
       // Complete the challenge in database
       const result = await completeChallenge(
         currentAttempt.id,
-        objectiveMet,
         moveCount,
         game.fen(),
         game.pgn(),

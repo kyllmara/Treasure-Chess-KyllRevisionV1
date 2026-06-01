@@ -37,7 +37,7 @@ type TabKey = "admins" | "search";
 
 export default function ManageAdminsScreen() {
   return (
-    <AdminGate featureName="Manage Admins">
+    <AdminGate featureName="Manage Admins" requireSuperAdmin>
       <ManageAdminsContent />
     </AdminGate>
   );

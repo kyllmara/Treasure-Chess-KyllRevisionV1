@@ -18,6 +18,9 @@ import { TCT_TO_USD_RATE, USDC_TO_TCT } from "./types";
 
 // Environment configuration
 const TRANSAK_API_KEY = process.env.EXPO_PUBLIC_TRANSAK_API_KEY || "";
+// TRANSAK_SECRET_KEY intentionally uses a non-EXPO_PUBLIC_ prefix so Expo
+// strips it at bundle time — it resolves to "" in the client bundle.
+// It is only available server-side (Supabase Edge Functions).
 const TRANSAK_SECRET_KEY = process.env.TRANSAK_SECRET_KEY || "";
 const TRANSAK_WEBHOOK_SECRET = process.env.TRANSAK_WEBHOOK_SECRET || "";
 const TRANSAK_ENV = (process.env.EXPO_PUBLIC_TRANSAK_ENV || "STAGING") as
@@ -30,7 +33,9 @@ const TRANSAK_ENV = (process.env.EXPO_PUBLIC_TRANSAK_ENV || "STAGING") as
 export const transakConfig: FiatRampConfig = {
   provider: "transak",
   apiKey: TRANSAK_API_KEY,
-  secretKey: TRANSAK_SECRET_KEY,
+  // serverOnlySecretKey is always "" in the client bundle (non-EXPO_PUBLIC_ env
+  // var stripped by Expo). Populated only in Edge Function environments.
+  serverOnlySecretKey: TRANSAK_SECRET_KEY,
   webhookSecret: TRANSAK_WEBHOOK_SECRET,
   environment: TRANSAK_ENV === "PRODUCTION" ? "production" : "sandbox",
   baseUrl:

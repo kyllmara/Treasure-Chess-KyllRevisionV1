@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { Settings, Wallet, Trophy, Swords, Target, Users, Video, Award, Share2, Gift, LogIn, Shield, RefreshCw, WifiOff, Cloud, CloudOff, Play } from "lucide-react-native";
+import { Settings, Wallet, Trophy, Swords, Target, Users, Video, Award, Share2, Gift, LogIn, Shield, RefreshCw, WifiOff, Cloud, CloudOff, Play, UserSearch } from "lucide-react-native";
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -821,6 +821,14 @@ export default function HomeScreen() {
       badge: challengeNotificationCount > 0 ? challengeNotificationCount : undefined,
     },
     {
+      title: "Challenge\na Friend",
+      subtitle: "Find & challenge a player",
+      icon: UserSearch,
+      gradient: ["#4ECDC4", "#44A08D"] as [string, string],
+      route: "/challenge-board" as const,
+      routeParams: { openFriendSearch: "true" },
+    },
+    {
       title: t("leaderboard"),
       subtitle: t("rank"),
       icon: Users,
@@ -1018,7 +1026,14 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     key={index}
                     style={[styles.card, item.disabled && styles.cardDisabled]}
-                    onPress={() => !item.disabled && router.push(item.route as any)}
+                    onPress={() => {
+                      if (item.disabled) return;
+                      if ((item as any).routeParams) {
+                        router.push({ pathname: item.route as any, params: (item as any).routeParams });
+                      } else {
+                        router.push(item.route as any);
+                      }
+                    }}
                     activeOpacity={0.8}
                     disabled={item.disabled}
                   >

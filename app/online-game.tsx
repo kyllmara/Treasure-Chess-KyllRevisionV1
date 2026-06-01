@@ -714,24 +714,27 @@ export default function OnlineGameScreen() {
         const timeRemainingMs = Math.round(newTimeRemaining * 1000);
 
         // Insert move to database
-        const { error: moveError } = await supabase.from("game_moves").insert({
-          game_id: gameId,
-          move_number: gameData.move_count + 1,
-          player_id: profile.id,
-          san: moveResult.san,
-          uci,
-          fen_before: fenBefore,
-          fen_after: fenAfter,
-          time_spent_ms: timeSpentMs,
-          time_remaining_ms: timeRemainingMs,
-          is_capture: moveResult.captured !== undefined,
-          is_check: moveResult.san.includes("+") || moveResult.san.includes("#"),
-          is_checkmate: isCheckmateNow,
-          is_castling: moveResult.san.includes("O-O"),
-          is_en_passant: moveResult.flags.includes("e"),
-          is_promotion: moveResult.promotion !== undefined,
-          promotion_piece: moveResult.promotion || null,
-        } as never);
+        const { error: moveError } = await supabase.from("game_moves").upsert(
+          {
+            game_id: gameId,
+            move_number: gameData.move_count + 1,
+            player_id: profile.id,
+            san: moveResult.san,
+            uci,
+            fen_before: fenBefore,
+            fen_after: fenAfter,
+            time_spent_ms: timeSpentMs,
+            time_remaining_ms: timeRemainingMs,
+            is_capture: moveResult.captured !== undefined,
+            is_check: moveResult.san.includes("+") || moveResult.san.includes("#"),
+            is_checkmate: isCheckmateNow,
+            is_castling: moveResult.san.includes("O-O"),
+            is_en_passant: moveResult.flags.includes("e"),
+            is_promotion: moveResult.promotion !== undefined,
+            promotion_piece: moveResult.promotion || null,
+          } as never,
+          { onConflict: "game_id, move_number", ignoreDuplicates: true }
+        );
 
         if (moveError) throw moveError;
         console.log("[OnlineGame] Move inserted to DB");

@@ -115,13 +115,14 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "216831c6-7862-477b-9726-79df6ef97c75"
+        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
       }
     },
-    "owner": "byronoc",
+    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
     "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/216831c6-7862-477b-9726-79df6ef97c75"
+      "enabled": false,
+      "url": "https://u.expo.dev/REPLACE_WITH_YOUR_EAS_PROJECT_ID"
     }
   }
 }

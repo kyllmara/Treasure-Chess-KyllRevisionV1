@@ -776,24 +776,27 @@ export const useOnlineGameStore = create<OnlineGameState>()((set, get) => ({
 
     try {
       // Insert move record
-      await supabase.from("game_moves").insert({
-        game_id: gameId,
-        move_number: moveNumber,
-        player_id: playerId,
-        san: move.san,
-        uci: `${move.from}${move.to}${move.promotion || ""}`,
-        fen_before: move.before,
-        fen_after: move.after,
-        time_spent_ms: 0, // TODO: Calculate from timestamps
-        time_remaining_ms: timeRemainingMs,
-        is_capture: !!move.captured,
-        is_check: chess.isCheck(),
-        is_checkmate: chess.isCheckmate(),
-        is_castling: move.flags.includes("k") || move.flags.includes("q"),
-        is_en_passant: move.flags.includes("e"),
-        is_promotion: !!move.promotion,
-        promotion_piece: move.promotion || null,
-      });
+      await supabase.from("game_moves").upsert(
+        {
+          game_id: gameId,
+          move_number: moveNumber,
+          player_id: playerId,
+          san: move.san,
+          uci: `${move.from}${move.to}${move.promotion || ""}`,
+          fen_before: move.before,
+          fen_after: move.after,
+          time_spent_ms: 0, // TODO: Calculate from timestamps
+          time_remaining_ms: timeRemainingMs,
+          is_capture: !!move.captured,
+          is_check: chess.isCheck(),
+          is_checkmate: chess.isCheckmate(),
+          is_castling: move.flags.includes("k") || move.flags.includes("q"),
+          is_en_passant: move.flags.includes("e"),
+          is_promotion: !!move.promotion,
+          promotion_piece: move.promotion || null,
+        },
+        { onConflict: "game_id, move_number", ignoreDuplicates: true }
+      );
 
       // Update game record
       const { playerColor, whiteTimeMs, blackTimeMs } = get();

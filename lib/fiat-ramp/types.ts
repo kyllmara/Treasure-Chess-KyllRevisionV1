@@ -27,7 +27,15 @@ export type KycStatus = "not_started" | "pending" | "approved" | "rejected";
 export interface FiatRampConfig {
   provider: FiatRampProvider;
   apiKey: string;
-  secretKey?: string;
+  /**
+   * Server-only secret key used by webhook verification Edge Functions.
+   * This field is intentionally loaded from a non-EXPO_PUBLIC_ env var
+   * (MOONPAY_SECRET_KEY / TRANSAK_SECRET_KEY), which Expo strips at
+   * bundle time so the value is always `""` in the client bundle.
+   * Never read this field in client-side code paths — use it only in
+   * Supabase Edge Functions where the env var is injected server-side.
+   */
+  serverOnlySecretKey?: string;
   webhookSecret?: string;
   environment: "sandbox" | "production";
   baseUrl: string;

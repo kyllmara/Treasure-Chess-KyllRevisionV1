@@ -57,6 +57,21 @@ serve(async (req) => {
       throw new Error("Missing required fields");
     }
 
+    // Verify userAddress belongs to the authenticated user
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("wallet_address")
+      .eq("id", userId)
+      .single();
+
+    if (!profile?.wallet_address ||
+        profile.wallet_address.toLowerCase() !== userAddress.toLowerCase()) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Wallet address does not match authenticated user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (!BACKEND_SIGNER_PRIVATE_KEY) {
       // Demo mode
       return new Response(JSON.stringify({ success: true, txHash: `demo_${Date.now()}` }),

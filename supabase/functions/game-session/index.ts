@@ -458,24 +458,27 @@ async function handleValidateMove(
   const now = new Date().toISOString();
 
   // Insert move record
-  const { error: moveError } = await supabase.from("game_moves").insert({
-    game_id: gameId,
-    move_number: newMoveCount,
-    player_id: playerId,
-    san,
-    uci: `${from}${to}${promotion || ""}`,
-    fen_before: gameRecord.current_fen,
-    fen_after: newFen,
-    time_spent_ms: calculateTimeSpent(gameRecord, clientTimestamp),
-    time_remaining_ms: timeRemainingMs,
-    is_capture: isCapture(state, to),
-    is_check: isCheck(newFen),
-    is_checkmate: gameEnd.reason === "checkmate",
-    is_castling: isCastling(from, to),
-    is_en_passant: isEnPassant(state, from, to),
-    is_promotion: !!promotion,
-    promotion_piece: promotion || null,
-  });
+  const { error: moveError } = await supabase.from("game_moves").upsert(
+    {
+      game_id: gameId,
+      move_number: newMoveCount,
+      player_id: playerId,
+      san,
+      uci: `${from}${to}${promotion || ""}`,
+      fen_before: gameRecord.current_fen,
+      fen_after: newFen,
+      time_spent_ms: calculateTimeSpent(gameRecord, clientTimestamp),
+      time_remaining_ms: timeRemainingMs,
+      is_capture: isCapture(state, to),
+      is_check: isCheck(newFen),
+      is_checkmate: gameEnd.reason === "checkmate",
+      is_castling: isCastling(from, to),
+      is_en_passant: isEnPassant(state, from, to),
+      is_promotion: !!promotion,
+      promotion_piece: promotion || null,
+    },
+    { onConflict: "game_id, move_number", ignoreDuplicates: true }
+  );
 
   if (moveError) {
     console.error("Error recording move:", moveError);

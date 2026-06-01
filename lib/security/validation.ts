@@ -8,6 +8,7 @@
  */
 
 import { z } from "zod";
+import { getAddress } from "ethers";
 
 // ============================================================================
 // Constants
@@ -136,6 +137,14 @@ export const messageSchema = z
 export const ethereumAddressSchema = z
   .string()
   .regex(ETHEREUM_ADDRESS_REGEX, "Invalid Ethereum address format")
+  .refine((val) => {
+    try {
+      getAddress(val);
+      return true;
+    } catch {
+      return false;
+    }
+  }, "Invalid Ethereum address checksum")
   .transform((val) => val.toLowerCase());
 
 /** Solana wallet address */

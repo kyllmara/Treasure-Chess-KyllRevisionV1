@@ -727,7 +727,7 @@ export const useWalletStore = create<WalletState>()(
             const usdcBalance = await fetchOnChainUsdcBalance(walletAddress);
             const tctFromUsdc = Math.floor(usdcBalance * USDC_TO_TCT_RATE);
 
-            console.log("[WalletStore] On-chain USDC balance:", usdcBalance, "= TCT:", tctFromUsdc);
+            if (__DEV__) console.log("[WalletStore] On-chain USDC balance:", usdcBalance, "= TCT:", tctFromUsdc);
 
             set({
               usdcBalance: usdcBalance,
@@ -772,7 +772,7 @@ export const useWalletStore = create<WalletState>()(
             const usdcBalance = await fetchOnChainUsdcBalance(walletAddress);
             const tctFromUsdc = Math.floor(usdcBalance * USDC_TO_TCT_RATE);
 
-            console.log("[WalletStore] Refreshed on-chain USDC:", usdcBalance, "= TCT:", tctFromUsdc);
+            if (__DEV__) console.log("[WalletStore] Refreshed on-chain USDC:", usdcBalance, "= TCT:", tctFromUsdc);
 
             set({
               usdcBalance: usdcBalance,

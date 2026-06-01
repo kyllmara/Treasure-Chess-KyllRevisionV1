@@ -3,16 +3,19 @@
  *
  * Users whose email matches an entry in this list are granted admin access.
  * Emails are compared case-insensitively.
+ *
+ * SECURITY NOTE: The previous developer's accounts (byronoc123@gmail.com,
+ * byronoc123@protonmail.com) were removed from both lists.
+ * Add your own admin email(s) here and run migration 061_sync_admin_emails.sql
+ * (updated) to sync the database flags accordingly.
  */
 
 export const ADMIN_EMAILS: string[] = [
-  "byronoc123@gmail.com",
-  "byronoc123@protonmail.com",
+  // TODO: add legitimate admin email(s) here, e.g. "admin@yourdomain.com"
 ];
 
 export const SUPER_ADMIN_EMAILS: string[] = [
-  "byronoc123@gmail.com",
-  "byronoc123@protonmail.com",
+  // TODO: add legitimate super-admin email(s) here, e.g. "admin@yourdomain.com"
 ];
 
 /**
