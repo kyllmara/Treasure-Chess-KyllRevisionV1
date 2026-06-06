@@ -260,8 +260,6 @@ interface GameRecord {
   ended_at: string;
   status: string;
   current_fen: string;
-  on_chain_game_id?: string;
-  on_chain_settled?: boolean;
 }
 
 interface PlayerProfile {
@@ -416,43 +414,15 @@ Deno.serve(async (req) => {
     // Check if already processed (ELO already calculated)
     const { data: existingElo } = await supabase
       .from("games")
-      .select("white_elo_after, black_elo_after, on_chain_settled, on_chain_game_id, wager_tct")
+      .select("white_elo_after, black_elo_after")
       .eq("id", gameId)
       .single();
 
-    // Only skip if we successfully fetched the game AND white_elo_after is set (not null)
-    // HOWEVER: If on-chain settlement is pending, we should still try to settle it!
     const eloAlreadyProcessed = existingElo && existingElo.white_elo_after !== null && existingElo.white_elo_after !== undefined;
-    const needsOnChainSettlement = existingElo?.on_chain_game_id && !existingElo?.on_chain_settled && existingElo?.wager_tct > 0;
 
-    if (eloAlreadyProcessed && !needsOnChainSettlement) {
+    if (eloAlreadyProcessed) {
       console.log(`[game-complete] Game ${gameId} already fully processed, white_elo_after:`, existingElo.white_elo_after);
       return jsonResponse({ error: "Game already processed", alreadyProcessed: true }, 400);
-    }
-
-    // If ELO is done but on-chain settlement is pending, just do the settlement
-    if (eloAlreadyProcessed && needsOnChainSettlement) {
-      console.log(`[game-complete] Game ${gameId} ELO done, but on-chain settlement pending. Retrying settlement...`);
-
-      try {
-        const onChainSettlement = await settleOnChainEscrow(gameRecord);
-        console.log("[game-complete] Retry on-chain settlement result:", onChainSettlement);
-
-        return jsonResponse({
-          success: true,
-          gameId,
-          message: "On-chain settlement retried",
-          onChainSettlement,
-          eloAlreadyProcessed: true,
-        });
-      } catch (e) {
-        console.error("[game-complete] Retry on-chain settlement failed:", e);
-        return jsonResponse({
-          success: false,
-          error: e instanceof Error ? e.message : "Settlement retry failed",
-          eloAlreadyProcessed: true,
-        }, 500);
-      }
     }
 
     // Fetch player profiles
@@ -594,36 +564,14 @@ Deno.serve(async (req) => {
 
     // 4. Settle wager if applicable
     let wagerSettlement = null;
-    let onChainSettlement = null;
-
-    console.log("[game-complete] Wager check:", {
-      wager_tct: gameRecord.wager_tct,
-      on_chain_game_id: gameRecord.on_chain_game_id,
-      on_chain_settled: gameRecord.on_chain_settled,
-    });
 
     if (gameRecord.wager_tct && gameRecord.wager_tct > 0) {
-      // ALWAYS do DB settlement first — this is the authoritative payout.
-      // DB balances were locked at game creation, so this always works
-      // regardless of on-chain escrow state.
       try {
-        console.log("[game-complete] Settling database escrow (always runs first)");
+        console.log("[game-complete] Settling database escrow");
         wagerSettlement = await settleWager(supabase, gameRecord);
-        console.log("[game-complete] Database settlement result:", wagerSettlement);
+        console.log("[game-complete] Settlement result:", wagerSettlement);
       } catch (e) {
-        console.error("[game-complete] DB wager settlement exception:", e);
-      }
-
-      // Additionally attempt on-chain settlement if escrow exists and isn't settled.
-      // This is a best-effort operation — DB settlement above already handled payouts.
-      if (gameRecord.on_chain_game_id && !gameRecord.on_chain_settled) {
-        try {
-          console.log("[game-complete] Additionally settling on-chain escrow");
-          onChainSettlement = await settleOnChainEscrow(gameRecord);
-          console.log("[game-complete] On-chain settlement result:", onChainSettlement);
-        } catch (e) {
-          console.error("[game-complete] On-chain settlement exception (non-fatal, DB settlement already done):", e);
-        }
+        console.error("[game-complete] Wager settlement exception:", e);
       }
     } else {
       console.log("[game-complete] No wager to settle");
@@ -652,7 +600,6 @@ Deno.serve(async (req) => {
         },
       },
       wagerSettlement,
-      onChainSettlement,
       pgn,
     });
   } catch (error) {
@@ -663,89 +610,6 @@ Deno.serve(async (req) => {
     );
   }
 });
-
-// ============================================================================
-// On-Chain Escrow Settlement
-// ============================================================================
-
-interface OnChainSettlement {
-  success: boolean;
-  txHash?: string;
-  blockNumber?: number;
-  result?: string;
-  error?: string;
-  alreadySettled?: boolean;
-}
-
-async function settleOnChainEscrow(game: GameRecord): Promise<OnChainSettlement> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-  try {
-    console.log(`[game-complete] Settling on-chain escrow for game ${game.id}`);
-    console.log(`[game-complete] on_chain_game_id: ${game.on_chain_game_id}`);
-    console.log(`[game-complete] supabaseUrl: ${supabaseUrl}`);
-
-    const requestBody = {
-      gameId: game.id,
-      onChainGameId: game.on_chain_game_id,
-    };
-    console.log(`[game-complete] Request body:`, JSON.stringify(requestBody));
-
-    // Call the submit-game-result edge function
-    const response = await fetch(
-      `${supabaseUrl}/functions/v1/submit-game-result`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
-
-    console.log(`[game-complete] Response status: ${response.status}`);
-
-    const resultText = await response.text();
-    console.log(`[game-complete] Response body: ${resultText}`);
-
-    let result;
-    try {
-      result = JSON.parse(resultText);
-    } catch (e) {
-      console.error(`[game-complete] Failed to parse response: ${resultText}`);
-      return {
-        success: false,
-        error: `Invalid response: ${resultText.substring(0, 100)}`,
-      };
-    }
-
-    if (!response.ok) {
-      console.error(`[game-complete] On-chain settlement failed:`, result);
-      return {
-        success: false,
-        error: result.error || `On-chain settlement failed (${response.status})`,
-      };
-    }
-
-    console.log(`[game-complete] On-chain settlement successful:`, result);
-
-    return {
-      success: true,
-      txHash: result.txHash,
-      blockNumber: result.blockNumber,
-      result: result.result,
-      alreadySettled: result.alreadySettled,
-    };
-  } catch (error) {
-    console.error(`[game-complete] Error settling on-chain escrow:`, error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
 
 // ============================================================================
 // Wager Settlement with Rake System

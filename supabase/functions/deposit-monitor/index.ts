@@ -385,8 +385,19 @@ async function handlePollMode(
           }
         }
       } else {
-        // Log unknown sender for manual review
-        console.log("Deposit from unknown address:", transfer.from, "tx:", transfer.txHash);
+        // No matching user — log for manual admin review.
+        // Cannot insert into pending_deposits (user_id NOT NULL constraint).
+        // Admins can query vault transactions on-chain to identify and credit manually.
+        const usdcAmount = parseUsdcAmount(transfer.amount);
+        console.warn(JSON.stringify({
+          event: "unmatched_deposit",
+          tx_hash: transfer.txHash,
+          from_address: transfer.from,
+          to_address: transfer.to,
+          usdc_amount: usdcAmount,
+          block_number: transfer.blockNumber,
+          timestamp: new Date().toISOString(),
+        }));
       }
     }
   }

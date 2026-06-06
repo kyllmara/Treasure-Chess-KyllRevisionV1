@@ -31,7 +31,12 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as WebBrowser from "expo-web-browser";
 import { useAuth } from "@/hooks/useAuth";
+
+// Required on Android: signals to WebBrowser.openAuthSessionAsync that the
+// OAuth redirect has been received, allowing the promise to resolve with the URL.
+WebBrowser.maybeCompleteAuthSession();
 
 // ============================================================================
 // OTP Input Component
@@ -136,6 +141,12 @@ export default function LoginScreen() {
   const [otpCode, setOtpCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Complete any pending OAuth session when this screen mounts or re-mounts
+  // after the redirect brings the user back from Google/Apple login.
+  useEffect(() => {
+    WebBrowser.maybeCompleteAuthSession();
+  }, []);
 
   // Handle resend cooldown timer
   useEffect(() => {
@@ -243,12 +254,14 @@ export default function LoginScreen() {
 
     try {
       await loginWithGoogle();
-      router.replace("/");
+      // loginWithGoogle resolves after exchangeCodeForSession — onAuthStateChange
+      // fires SIGNED_IN asynchronously, so let index.tsx handle the redirect.
+      // Don't navigate here; the auth state update will trigger routing naturally.
     } catch (err: any) {
       if (err?.code !== "OAUTH_CANCELLED") {
         Alert.alert(
           "Login Failed",
-          err?.message || "Google sign-in failed. Please try email login in Expo Go."
+          err?.message || "Google sign-in failed. Please try email login instead."
         );
       }
     } finally {
@@ -279,7 +292,7 @@ export default function LoginScreen() {
   // UI State
   // -------------------------------------------------------------------------
 
-  const isButtonDisabled = isLoading || isSubmitting;
+  const isButtonDisabled = isSubmitting;
   const showOTPInput =
     otpState === "awaiting_code_input" ||
     otpState === "verifying_code" ||

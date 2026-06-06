@@ -466,74 +466,52 @@ export const usePlayNowStore = create<PlayNowStore>()(
 
         const validOpponent = opponents[0];
 
-        // Map RPC result fields to match expected shape
-        const opponentEntry = {
-          id: validOpponent.queue_id,
-          user_id: validOpponent.opponent_id,
-          elo_rating: validOpponent.opponent_elo,
-          on_chain_game_id: validOpponent.on_chain_game_id,
-          profiles: {
-            username: validOpponent.opponent_username,
-            avatar_index: validOpponent.opponent_avatar_index,
-            elo_rating: validOpponent.opponent_elo,
-          },
-        };
-
-        // NO escrow operations here — escrow happens in background AFTER game starts
-
-        // Try to claim the match atomically via RPC (bypasses RLS)
-        const { data: claimResult, error: claimError } = await (supabase.rpc as any)(
-          "claim_play_now_match",
+        // Single atomic RPC: claim both queue entries + create game + lock balances.
+        // If any step fails (e.g. insufficient balance) the whole transaction rolls back
+        // and entries remain 'waiting' so both players keep searching.
+        const { data: result, error: createError } = await (supabase.rpc as any)(
+          "create_play_now_game",
           {
-            p_my_queue_id: state.queueEntry.id,
-            p_opponent_queue_id: opponentEntry.id,
+            p_my_queue_id:       state.queueEntry.id,
+            p_opponent_queue_id: validOpponent.queue_id,
+            p_my_user_id:        state._userId,
           }
         );
 
-        if (claimError || !claimResult?.success) {
-          console.log("[PlayNowStore] Claim failed:", claimError?.message || claimResult?.error);
+        if (createError || !result?.success) {
+          console.log(
+            "[PlayNowStore] create_play_now_game failed:",
+            createError?.message || result?.error
+          );
           set({ _findMatchInProgress: false });
           return false;
         }
 
-        // Create the game immediately (escrow locks in background)
-        const gameId = await get()._createGame(opponentEntry);
+        const gameId    = result.game_id as string;
+        const isWhite   = result.white_player_id === state._userId;
 
-        if (gameId) {
-          // Update both queue entries with game ID via RPC (bypasses RLS)
-          await (supabase.rpc as any)("set_play_now_game_id", {
-            p_my_queue_id: state.queueEntry.id,
-            p_opponent_queue_id: opponentEntry.id,
-            p_game_id: gameId,
-          });
+        // Stop polling
+        if (state._pollInterval)    clearInterval(state._pollInterval);
+        if (state._durationInterval) clearInterval(state._durationInterval);
+        if (state._subscription)    supabase.removeChannel(state._subscription);
 
-          // Stop polling
-          if (state._pollInterval) clearInterval(state._pollInterval);
-          if (state._durationInterval) clearInterval(state._durationInterval);
-          if (state._subscription) supabase.removeChannel(state._subscription);
+        set({
+          status: "matched",
+          matchedGameId: gameId,
+          playerColor: isWhite ? "w" : "b",
+          matchedOpponent: {
+            id:          validOpponent.opponent_id,
+            username:    validOpponent.opponent_username || "Opponent",
+            avatarIndex: validOpponent.opponent_avatar_index || 0,
+            eloRating:   validOpponent.opponent_elo,
+          },
+          _pollInterval:       null,
+          _durationInterval:   null,
+          _subscription:       null,
+          _findMatchInProgress: false,
+        });
 
-          const profile = opponentEntry.profiles as any;
-
-          set({
-            status: "matched",
-            matchedGameId: gameId,
-            matchedOpponent: {
-              id: opponentEntry.user_id,
-              username: profile?.username || "Opponent",
-              avatarIndex: profile?.avatar_index || 0,
-              eloRating: opponentEntry.elo_rating,
-            },
-            _pollInterval: null,
-            _durationInterval: null,
-            _subscription: null,
-            _findMatchInProgress: false,
-          });
-
-          return true;
-        }
-
-        set({ _findMatchInProgress: false });
-        return false;
+        return true;
       } catch (error) {
         console.error("[PlayNowStore] _findMatch error:", error);
         set({ _findMatchInProgress: false });
@@ -559,15 +537,15 @@ export const usePlayNowStore = create<PlayNowStore>()(
         }
 
         if (entry?.status === "matched" && entry?.game_id) {
-          // Stop polling immediately
+          // We were matched by the other player's create_play_now_game call.
           const currentState = get();
-          if (currentState._pollInterval) clearInterval(currentState._pollInterval);
+          if (currentState._pollInterval)    clearInterval(currentState._pollInterval);
           if (currentState._durationInterval) clearInterval(currentState._durationInterval);
-          if (currentState._subscription) supabase.removeChannel(currentState._subscription);
+          if (currentState._subscription)    supabase.removeChannel(currentState._subscription);
 
           const profile = entry.profiles as any;
 
-          // Get game to determine our color
+          // Determine color from the game record
           const { data: game } = await supabase
             .from("games")
             .select("white_player_id, black_player_id")
@@ -577,18 +555,18 @@ export const usePlayNowStore = create<PlayNowStore>()(
           const playerColor = game?.white_player_id === currentState._userId ? "w" : "b";
 
           set({
-            status: "matched",
+            status:       "matched",
             matchedGameId: entry.game_id,
-            matchedOpponent: {
-              id: entry.matched_with_id,
-              username: profile?.username || "Opponent",
-              avatarIndex: profile?.avatar_index || 0,
-              eloRating: profile?.elo_rating || 1200,
-            },
             playerColor,
-            _pollInterval: null,
-            _durationInterval: null,
-            _subscription: null,
+            matchedOpponent: {
+              id:          entry.matched_with_id,
+              username:    profile?.username    || "Opponent",
+              avatarIndex: profile?.avatar_index || 0,
+              eloRating:   profile?.elo_rating   || 1200,
+            },
+            _pollInterval:        null,
+            _durationInterval:    null,
+            _subscription:        null,
             _findMatchInProgress: false,
           });
 

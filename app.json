@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.high-stakes-chess",
+      "bundleIdentifier": "com.treasurechess.app",
       "buildNumber": "1",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -39,12 +39,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.high_stakes_chess",
+      "package": "com.treasurechess.app",
       "permissions": [
-        "RECORD_AUDIO",
-        "android.permission.VIBRATE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
         "RECORD_AUDIO",
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO",
@@ -58,12 +54,7 @@
     },
     "plugins": [
       "./plugins/withQuickCryptoFix",
-      [
-        "expo-router",
-        {
-          "origin": "https://rork.com/"
-        }
-      ],
+      "expo-router",
       [
         "expo-font",
         {
@@ -115,14 +106,14 @@
         "origin": "https://rork.com/"
       },
       "eas": {
-        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+        "projectId": "b9455945-faeb-4c3b-93e8-fb72b4473f2d"
       }
     },
-    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
+    "owner": "eneh4kene",
     "runtimeVersion": "1.0.0",
     "updates": {
       "enabled": false,
-      "url": "https://u.expo.dev/REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+      "url": "https://u.expo.dev/b9455945-faeb-4c3b-93e8-fb72b4473f2d"
     }
   }
 }

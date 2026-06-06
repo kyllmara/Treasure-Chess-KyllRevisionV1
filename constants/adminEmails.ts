@@ -11,11 +11,11 @@
  */
 
 export const ADMIN_EMAILS: string[] = [
-  // TODO: add legitimate admin email(s) here, e.g. "admin@yourdomain.com"
+  "eneh4kene@gmail.com",
 ];
 
 export const SUPER_ADMIN_EMAILS: string[] = [
-  // TODO: add legitimate super-admin email(s) here, e.g. "admin@yourdomain.com"
+  "eneh4kene@gmail.com",
 ];
 
 /**

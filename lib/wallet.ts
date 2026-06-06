@@ -16,6 +16,7 @@
 
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { logger } from "./security";
+import { TCT_TO_USD, USDC_TO_TCT_RATE, tctToUsd, usdToTct } from "./tct";
 import type { Database } from "@/types/supabase";
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
@@ -130,7 +131,8 @@ export type TransactionCallback = (transaction: TransactionDisplayItem) => void;
 // Constants
 // ============================================================================
 
-export { TCT_TO_USD, USDC_TO_TCT_RATE as USD_TO_TCT, tctToUsd, usdToTct } from "./tct";
+export const USD_TO_TCT = USDC_TO_TCT_RATE;
+export { TCT_TO_USD, tctToUsd, usdToTct };
 
 /** Minimum withdrawal amount in TCT */
 export const MIN_WITHDRAWAL_TCT = 100;
@@ -978,42 +980,3 @@ export function cleanupAllSubscriptions(): void {
 
 // ============================================================================
 // Default Export
-// ============================================================================
-
-export default {
-  // Balance operations
-  fetchBalance,
-  createInitialBalance,
-  getOrCreateBalance,
-  creditBalance,
-
-  // Transaction operations
-  fetchTransactionHistory,
-  fetchRecentTransactions,
-
-  // Deposit operations
-  fetchPendingDeposits,
-
-  // Withdrawal operations
-  validateWithdrawalRequest,
-  requestWithdrawal,
-  fetchWithdrawals,
-
-  // Real-time subscriptions
-  subscribeToBalanceChanges,
-  subscribeToTransactions,
-  cleanupAllSubscriptions,
-
-  // Utilities
-  tctToUsd,
-  usdToTct,
-  formatTct,
-  formatUsd,
-
-  // Constants
-  TCT_TO_USD,
-  USD_TO_TCT,
-  MIN_WITHDRAWAL_TCT,
-  MIN_BANK_WITHDRAWAL_USD,
-  DEFAULT_PAGE_SIZE,
-};

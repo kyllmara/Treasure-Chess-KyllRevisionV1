@@ -29,7 +29,7 @@ CREATE TYPE queue_status AS ENUM ('waiting', 'matched', 'cancelled', 'expired');
 -- PROFILES TABLE
 -- =====================================================
 CREATE TABLE profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   username TEXT NOT NULL UNIQUE,
   email TEXT,
   avatar_index INTEGER NOT NULL DEFAULT 0,
@@ -59,7 +59,7 @@ CREATE TABLE profiles (
 -- BALANCES TABLE
 -- =====================================================
 CREATE TABLE balances (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   available_tct NUMERIC(20, 8) NOT NULL DEFAULT 0,
   locked_tct NUMERIC(20, 8) NOT NULL DEFAULT 0,
@@ -76,7 +76,7 @@ CREATE TABLE balances (
 -- GAMES TABLE
 -- =====================================================
 CREATE TABLE games (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   white_player_id UUID NOT NULL REFERENCES profiles(id),
   black_player_id UUID NOT NULL REFERENCES profiles(id),
   winner_id UUID REFERENCES profiles(id),
@@ -108,7 +108,7 @@ CREATE TABLE games (
 -- GAME MOVES TABLE
 -- =====================================================
 CREATE TABLE game_moves (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
   move_number INTEGER NOT NULL,
   player_id UUID NOT NULL REFERENCES profiles(id),
@@ -132,7 +132,7 @@ CREATE TABLE game_moves (
 -- CHALLENGES TABLE
 -- =====================================================
 CREATE TABLE challenges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   creator_id UUID NOT NULL REFERENCES profiles(id),
   opponent_id UUID REFERENCES profiles(id),
   room_code TEXT NOT NULL UNIQUE,
@@ -153,7 +153,7 @@ CREATE TABLE challenges (
 -- GAME ESCROWS TABLE
 -- =====================================================
 CREATE TABLE game_escrows (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE UNIQUE,
   player_white_id UUID NOT NULL REFERENCES profiles(id),
   player_white_locked_tct NUMERIC(20, 8) NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE game_escrows (
 -- TRANSACTIONS TABLE
 -- =====================================================
 CREATE TABLE transactions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id),
   type transaction_type NOT NULL,
   amount_tct NUMERIC(20, 8) NOT NULL,
@@ -193,7 +193,7 @@ CREATE TABLE transactions (
 -- MATCHMAKING QUEUE TABLE
 -- =====================================================
 CREATE TABLE matchmaking_queue (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id),
   wager_tct NUMERIC(20, 8) NOT NULL,
   time_control_seconds INTEGER NOT NULL,

@@ -76,8 +76,24 @@ $$;
 GRANT EXECUTE ON FUNCTION get_current_user_profile_id() TO authenticated;
 GRANT EXECUTE ON FUNCTION get_current_user_profile_id() TO anon;
 
--- 8. Drop privy_user_id — all policies and functions updated above
-ALTER TABLE profiles DROP COLUMN IF EXISTS privy_user_id;
+-- 8. Drop privy_user_id — use CASCADE to automatically remove dependent RLS
+--    policies on other tables (transactions, matchmaking_queue, payment_orders,
+--    user_kyc_status, withdrawal_limits, admin_audit_log, admin_sessions,
+--    user_rewards, user_achievements).  Migration 118 recreates most of them;
+--    transactions and matchmaking_queue are recreated below.
+ALTER TABLE profiles DROP COLUMN IF EXISTS privy_user_id CASCADE;
+
+-- Recreate the two policies that migration 118 does not cover.
+-- auth.uid() == profiles.id in this codebase (Supabase Auth UUID pattern).
+DROP POLICY IF EXISTS "Users can view own transactions" ON transactions;
+CREATE POLICY "Users can view own transactions" ON transactions
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Users can view own queue entries" ON matchmaking_queue;
+CREATE POLICY "Users can view own queue entries" ON matchmaking_queue
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
 
 -- 9. Drop magic_user_id — created by 014_magic_auth_migration.sql for Magic SDK,
 --    never populated since switching to Supabase Auth. No current code reads or writes it.

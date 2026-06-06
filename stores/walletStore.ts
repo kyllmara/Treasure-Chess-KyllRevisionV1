@@ -735,13 +735,14 @@ export const useWalletStore = create<WalletState>()(
             });
           }
 
-          // Fetch locked balance from Supabase (for active games/escrow tracking)
+          // Fetch balance from Supabase DB (source of truth for TCT)
           if (isSupabaseConfigured && userId) {
             const result = await getOrCreateBalance(userId);
 
             if (result.success && result.data) {
               const balance = result.data;
               set({
+                tctBalance: balance.availableTct,
                 lockedTctBalance: balance.lockedTct,
                 totalDepositedTct: balance.totalDepositedTct,
                 totalWithdrawnTct: balance.totalWithdrawnTct,
@@ -780,13 +781,14 @@ export const useWalletStore = create<WalletState>()(
             });
           }
 
-          // Refresh locked balance from Supabase
+          // Refresh balance from Supabase DB (source of truth for TCT)
           if (isSupabaseConfigured && userId) {
             const result = await fetchBalanceFromService(userId);
 
             if (result.success && result.data) {
               const balance = result.data;
               set({
+                tctBalance: balance.availableTct,
                 lockedTctBalance: balance.lockedTct,
                 totalDepositedTct: balance.totalDepositedTct,
                 totalWithdrawnTct: balance.totalWithdrawnTct,

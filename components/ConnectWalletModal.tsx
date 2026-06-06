@@ -17,12 +17,13 @@ import { X, Wallet, Check, Copy, ExternalLink, ArrowRight, AlertCircle } from 'l
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserStore } from '@/stores/userStore';
-import { getVaultAddress, USDC_CONTRACT_ADDRESS } from '@/lib/vault';
+import { USDC_CONTRACT_ADDRESS } from '@/lib/vault';
 import { supabase } from '@/lib/supabase';
 
 const CHAIN_ID = process.env.EXPO_PUBLIC_CHAIN_ID || '8453';
 const NETWORK_NAME = 'Base';
 const BLOCK_EXPLORER = 'https://basescan.org';
+const VAULT_ADDRESS = process.env.EXPO_PUBLIC_VAULT_ADDRESS || '0x8b490D45A94DC7a967D1bDA4B160Fa1c99445EEa';
 
 function isValidAddress(addr: string): boolean {
   return /^0x[0-9a-fA-F]{40}$/.test(addr.trim());
@@ -64,11 +65,8 @@ export function ConnectWalletModal({
     setEditingWallet(false);
     setWalletInput('');
     setWalletInputError('');
-    setVaultLoading(true);
-    getVaultAddress().then((addr) => {
-      setVaultAddress(addr || '');
-      setVaultLoading(false);
-    });
+    setVaultAddress(VAULT_ADDRESS);
+    setVaultLoading(false);
   }, [visible]);
 
   const handleCopyVaultAddress = async () => {

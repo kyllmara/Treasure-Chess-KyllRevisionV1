@@ -289,11 +289,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (profileSyncInProgress.current) return;
     profileSyncInProgress.current = true;
 
+    const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`Auth timed out after ${ms}ms`)), ms)
+        ),
+      ]);
+
     try {
       const authUserId = session.user.id;
       const email = session.user.email ?? null;
 
-      let profile = await fetchProfileByAuthId(authUserId);
+      let profile = await withTimeout(fetchProfileByAuthId(authUserId), 8000);
 
       if (!profile) {
         profile = await createProfile({
@@ -374,6 +382,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
+    // Hard cap: never stay in isLoading state longer than 10 seconds
+    const loadingTimeout = setTimeout(() => {
+      setState((s) => {
+        if (!s.isLoading) return s;
+        logger.warn("Auth", "Auth loading timed out after 10s, falling back to guest");
+        return {
+          ...initialState,
+          mode: "guest",
+          isMagicReady: true,
+          isLoading: false,
+          isGuest: true,
+          profile: GUEST_PROFILE,
+        };
+      });
+    }, 10000);
+
     // Subscribe to auth state changes — this is the single source of truth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       logger.debug("Auth", "Auth state changed", { event, hasSession: !!session });
@@ -410,6 +434,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(loadingTimeout);
     };
   }, [handleSession]);
 
@@ -541,36 +566,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginWithGoogle = useCallback(async (): Promise<void> => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
+      logger.debug("Auth", "Starting Google OAuth");
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: OAUTH_REDIRECT_URL, skipBrowserRedirect: true },
       });
 
       if (error || !data.url) throw error || new Error("No OAuth URL returned");
+      logger.debug("Auth", "Opening OAuth browser", { url: data.url.substring(0, 80) });
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URL);
+      logger.debug("Auth", "OAuth browser result", { type: result.type, url: result.type === "success" ? (result as any).url?.substring(0, 120) : undefined });
 
       if (result.type === "cancel" || result.type === "dismiss") {
         setState((s) => ({ ...s, isLoading: false }));
         return;
       }
 
-      if (result.type === "success" && result.url) {
-        // Extract tokens from the redirect URL fragment
-        const url = new URL(result.url);
+      if (result.type === "success" && (result as any).url) {
+        const redirectUrl: string = (result as any).url;
+        // Implicit flow: tokens come back in the URL fragment (#access_token=...&refresh_token=...)
+        const url = new URL(redirectUrl);
         const params = new URLSearchParams(
           url.hash ? url.hash.substring(1) : url.search.substring(1)
         );
         const accessToken = params.get("access_token");
         const refreshToken = params.get("refresh_token");
-
+        logger.debug("Auth", "OAuth redirect parsed", { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
         if (accessToken && refreshToken) {
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
           if (sessionError) throw sessionError;
-          // onAuthStateChange SIGNED_IN fires and handles the rest
+          // onAuthStateChange SIGNED_IN fires and handleSession completes auth
+        } else {
+          throw new Error("No tokens in OAuth redirect — check Supabase OAuth flow type");
         }
       }
     } catch (e: any) {

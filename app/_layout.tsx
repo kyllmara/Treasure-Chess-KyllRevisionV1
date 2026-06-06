@@ -12,19 +12,36 @@ import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
 import { WalletInitializer } from "@/components/WalletInitializer";
 import { ChallengeNotificationListener } from "@/components/ChallengeNotificationListener";
 import { TournamentMatchListener } from "@/components/TournamentMatchListener";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useAuth } from "@/hooks/useAuth";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Stale time of 5 minutes for auth-related queries
       staleTime: 5 * 60 * 1000,
-      // Retry failed queries up to 2 times
       retry: 2,
     },
   },
 });
+
+// Hides the splash screen once auth has finished its initial check.
+// Sits inside AuthProvider so it can read auth state.
+function SplashHider() {
+  const { isLoading } = useAuth();
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+  useEffect(() => {
+    // Safety net: never hang on splash longer than 5 seconds
+    const t = setTimeout(() => SplashScreen.hideAsync(), 5000);
+    return () => clearTimeout(t);
+  }, []);
+  return null;
+}
 
 function RootLayoutNav() {
   return (
@@ -64,27 +81,26 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
-          <WalletInitializer>
-            <AppProvider>
-              <SyncStatusProvider>
-                <ToastProvider>
-                  <RootLayoutNav />
-                  <NetworkStatusIndicator />
-                  <ChallengeNotificationListener />
-                  <TournamentMatchListener />
-                </ToastProvider>
-              </SyncStatusProvider>
-            </AppProvider>
-          </WalletInitializer>
-        </AuthProvider>
+        <ErrorBoundary scope="root">
+          <AuthProvider>
+            <SplashHider />
+            <WalletInitializer>
+              <AppProvider>
+                <SyncStatusProvider>
+                  <ToastProvider>
+                    <RootLayoutNav />
+                    <NetworkStatusIndicator />
+                    <ChallengeNotificationListener />
+                    <TournamentMatchListener />
+                  </ToastProvider>
+                </SyncStatusProvider>
+              </AppProvider>
+            </WalletInitializer>
+          </AuthProvider>
+        </ErrorBoundary>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

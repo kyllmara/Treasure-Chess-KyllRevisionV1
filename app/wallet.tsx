@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -32,11 +32,13 @@ import { supabase } from "@/lib/supabase";
 import NetInfo from "@react-native-community/netinfo";
 import { ConnectWalletModal } from "@/components/ConnectWalletModal";
 
-const PRESET_AMOUNTS = [10, 25, 50, 100];
+const PRESET_AMOUNTS = [5, 10, 25, 50];
 const TCT_TO_USD = 0.04;
-// Network configuration
 const NETWORK_NAME = "Base";
 const USDC_CONTRACT = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const VAULT_ADDRESS = process.env.EXPO_PUBLIC_VAULT_ADDRESS || "0x8b490D45A94DC7a967D1bDA4B160Fa1c99445EEa";
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
 
 function usdToTCT(usd: number): number {
   return usd / TCT_TO_USD;
@@ -116,9 +118,10 @@ function WalletContent() {
     return () => clearInterval(interval);
   }, [refreshOnChainBalance]);
 
-  // Get wallet address from useWallet hook, auth, or profile
-  const userWalletAddress = walletAddress || user?.walletAddress || profile?.embeddedWalletAddress || "";
+  // Get deposit address — user's embedded wallet if available, otherwise the vault
+  const userWalletAddress = walletAddress || user?.walletAddress || profile?.embeddedWalletAddress || VAULT_ADDRESS;
   const {
+    tctBalance: storeTctBalance,
     lockedTctBalance,
     transactions,
     isLoadingBalance,
@@ -147,8 +150,8 @@ function WalletContent() {
     getCombinedTransactions,
   } = useWalletStore();
 
-  // TCT balance from wallet store
-  const tctBalance = onChainTctBalance;
+  // DB balance is source of truth for TCT (off-chain token tracked in Supabase)
+  const tctBalance = storeTctBalance || onChainTctBalance || 0;
 
   const [activeTab, setActiveTab] = useState<"deposit" | "withdraw">("deposit");
   const [amount, setAmount] = useState<string>("");
@@ -252,6 +255,10 @@ function WalletContent() {
     const depositAmount = parseFloat(amount);
     if (!depositAmount || depositAmount <= 0) {
       Alert.alert("Invalid Amount", "Please enter a valid amount");
+      return;
+    }
+    if (depositAmount < 5) {
+      Alert.alert("Minimum Deposit", "Minimum deposit is $5");
       return;
     }
 
@@ -481,6 +488,16 @@ function WalletContent() {
   };
 
   const processDeposit = async (paymentMethod: string) => {
+    // Card payments require an authenticated session
+    if (paymentMethod === "Card / Bank Transfer") {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setShowPaymentMethodModal(false);
+        Alert.alert("Sign In Required", "Please sign in to make a card deposit.");
+        return;
+      }
+    }
+
     const depositAmount = parseFloat(amount);
 
     if (paymentMethod === "Crypto Wallet") {
@@ -488,43 +505,36 @@ function WalletContent() {
       return;
     }
 
-    if (paymentMethod === "Revolut / Apple / BACS") {
-      let checkoutUrl = "";
-
-      if (depositAmount === 10) {
-        checkoutUrl = "https://checkout.revolut.com/pay/7b37b870-94ab-485e-a282-6d680bbeca1f";
-      } else if (depositAmount === 25) {
-        checkoutUrl = "https://checkout.revolut.com/pay/587390b1-6dab-4bfe-b625-f659b760b826";
-      } else if (depositAmount === 50) {
-        checkoutUrl = "https://checkout.revolut.com/pay/f521e2e4-7f16-44f9-952f-8b0929b8270e";
-      } else if (depositAmount === 100) {
-        checkoutUrl = "https://checkout.revolut.com/pay/9bd243d1-6c13-4ee4-bd14-503414151add";
-      } else {
-        checkoutUrl = "https://checkout.revolut.com/pay/6da7da05-4a8f-4a95-a1df-81705f86f0ef";
-      }
-
-      if (checkoutUrl) {
-        try {
-          const supported = await Linking.canOpenURL(checkoutUrl);
-          if (supported) {
-            await Linking.openURL(checkoutUrl);
-            setShowPaymentMethodModal(false);
-            // Note: Balance will be updated via Supabase real-time subscription
-            // when the payment webhook processes the deposit
-            Alert.alert(
-              "Payment Started",
-              "Complete the payment in your browser. Your balance will update automatically once the payment is confirmed."
-            );
-            setAmount("");
-            setSelectedPreset(null);
-          } else {
-            Alert.alert("Error", "Cannot open Revolut checkout");
+    if (paymentMethod === "Card / Bank Transfer") {
+      try {
+        setShowPaymentMethodModal(false);
+        // Get a secure widget URL from our backend (keeps API secret off the client)
+        const { data: { session } } = await supabase.auth.getSession();
+        const resp = await fetch(
+          `${SUPABASE_URL}/functions/v1/transak-session`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.access_token ?? SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ fiatAmount: depositAmount, fiatCurrency: "GBP" }),
           }
-        } catch {
-          Alert.alert("Error", "Failed to open Revolut checkout");
-        }
-        return;
+        );
+        const { url, error: sessionError } = await resp.json();
+        if (sessionError || !url) throw new Error(sessionError || "Could not create payment session");
+
+        await Linking.openURL(url);
+        Alert.alert(
+          "Deposit Started",
+          "Complete your payment in the browser. Your TCT balance will update automatically once confirmed."
+        );
+        setAmount("");
+        setSelectedPreset(null);
+      } catch (e: any) {
+        Alert.alert("Payment Error", e?.message || "Failed to open payment page");
       }
+      return;
     }
 
     // For other payment methods - show info that balance updates automatically
@@ -817,13 +827,13 @@ function WalletContent() {
             {activeTab === "deposit" ? (
               <>
                 <TouchableOpacity
-                  style={styles.paymentMethodButton}
-                  onPress={() => processDeposit("Revolut / Apple / BACS")}
+                  style={[styles.paymentMethodButton, { opacity: 0.5 }]}
+                  onPress={() => Alert.alert("Coming Soon", "Card deposits are pending partner activation. Use Crypto Wallet to deposit now.")}
                 >
-                  <CreditCard size={24} color="#FFD700" />
+                  <CreditCard size={24} color="#888888" />
                   <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodTitle}>Revolut / Apple / BACS</Text>
-                    <Text style={styles.paymentMethodSubtitle}>Instant deposit</Text>
+                    <Text style={[styles.paymentMethodTitle, { color: "#888888" }]}>Card / Bank Transfer</Text>
+                    <Text style={styles.paymentMethodSubtitle}>Pending activation · Powered by Transak</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -885,27 +895,47 @@ function WalletContent() {
 
             {activeTab === "deposit" ? (
               <View style={styles.cryptoDepositContent}>
-                {/* User's Wallet Address Section */}
-                <Text style={styles.cryptoSectionTitle}>Your Wallet Address</Text>
-                <Text style={styles.cryptoInstructions}>
-                  Send USDC from MetaMask, Phantom, or any wallet to your Treasure Chess wallet:
-                </Text>
+                {/* Vault Deposit Address Section */}
+                <Text style={styles.cryptoSectionTitle}>Platform Deposit Address</Text>
+
+                {/* Wallet connection gate */}
+                {!profile?.externalWalletAddress ? (
+                  <View style={{ backgroundColor: "#3A1A00", borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: "#FF6B00" }}>
+                    <Text style={{ color: "#FF6B00", fontWeight: "bold", marginBottom: 4 }}>⚠️ Connect your wallet first</Text>
+                    <Text style={{ color: "#FFAA66", fontSize: 13 }}>
+                      You must connect the wallet you'll send from before depositing. If you send without connecting, your deposit cannot be credited to your account.
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.cryptoInstructions}>
+                    Send USDC on Base from your connected wallet ({profile.externalWalletAddress.slice(0,6)}...{profile.externalWalletAddress.slice(-4)}) to this address:
+                  </Text>
+                )}
+
                 <View style={styles.addressContainer}>
                   <View style={styles.addressBox}>
                     <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
-                      {userWalletAddress || "Sign in to view your wallet address"}
+                      {VAULT_ADDRESS}
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={styles.copyButton}
                     onPress={async () => {
-                      if (userWalletAddress) {
-                        await Clipboard.setStringAsync(userWalletAddress);
-                        setAddressCopied(true);
-                        setTimeout(() => setAddressCopied(false), 2000);
+                      if (!profile?.externalWalletAddress) {
+                        Alert.alert(
+                          "Connect Wallet First",
+                          "Please connect the wallet you'll be sending from before copying the deposit address. This ensures your deposit gets credited to your account.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Connect Wallet", onPress: handleConnectWallet },
+                          ]
+                        );
+                        return;
                       }
+                      await Clipboard.setStringAsync(VAULT_ADDRESS);
+                      setAddressCopied(true);
+                      setTimeout(() => setAddressCopied(false), 2000);
                     }}
-                    disabled={!userWalletAddress}
                   >
                     <LinearGradient
                       colors={addressCopied ? ["#4ECDC4", "#44A08D"] : ["#FFD700", "#FFA500"]}

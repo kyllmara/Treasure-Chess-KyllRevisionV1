@@ -9,7 +9,8 @@
  */
 
 import { supabase } from "./supabase";
-export { USDC_TO_TCT_RATE, TCT_TO_USDC_RATE, TCT_TO_USD, usdcToTct, tctToUsdc, tctToUsd, usdToTct } from "./tct";
+import { USDC_TO_TCT_RATE, TCT_TO_USDC_RATE, TCT_TO_USD, usdcToTct, tctToUsdc, tctToUsd, usdToTct } from "./tct";
+export { USDC_TO_TCT_RATE, TCT_TO_USDC_RATE, TCT_TO_USD, usdcToTct, tctToUsdc, tctToUsd, usdToTct };
 
 // ============================================================================
 // Constants
@@ -371,36 +372,3 @@ export function truncateAddress(
   return `${address.slice(0, start)}...${address.slice(-end)}`;
 }
 
-// ============================================================================
-// Default Export
-// ============================================================================
-
-export default {
-  // Address
-  getVaultAddress,
-  getVaultStatus,
-
-  // Withdrawals
-  requestWithdrawal,
-  getUserWithdrawals,
-  getPendingWithdrawals,
-
-  // Transactions
-  getUserVaultTransactions,
-
-  // Utilities
-  usdcToTct,
-  tctToUsdc,
-  formatTct,
-  formatUsdc,
-  parseUsdcAmount,
-  truncateAddress,
-
-  // Constants
-  USDC_CONTRACT_ADDRESS,
-  USDC_DECIMALS,
-  USDC_TO_TCT_RATE,
-  TCT_TO_USD,
-  MIN_WITHDRAWAL_TCT,
-  REQUIRED_CONFIRMATIONS,
-};

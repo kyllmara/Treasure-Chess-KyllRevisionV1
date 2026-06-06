@@ -23,6 +23,13 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Generated native projects (expo run:android/ios)
+android/
+ios/
+
+# Claude Code
+.claude/
+
 # Native
 *.orig.*
 *.jks

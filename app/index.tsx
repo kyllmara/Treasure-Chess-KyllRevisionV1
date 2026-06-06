@@ -76,7 +76,7 @@ function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
         duration: 500,
         useNativeDriver: true,
       }).start(() => onComplete());
-    }, 6800);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, [fadeAnim, scaleAnim, onComplete]);
@@ -416,8 +416,14 @@ const syncStatusStyles = StyleSheet.create({
 export default function HomeScreen() {
   const router = useRouter();
   const { user, t, saveGeneratedDragon, updateProfile, customChallengeMatchmaking } = useApp();
-  const { isAuthenticated, isGuest, isLoading: isAuthLoading, profile } = useAuth();
+  const { isAuthenticated, isGuest, isLoading: isAuthLoadingRaw, profile } = useAuth();
   const { isAdmin, checkAdminStatus } = useAdmin();
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAuthTimedOut(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  const isAuthLoading = isAuthLoadingRaw && !authTimedOut;
 
   // Redirect unauthenticated users to login — guest mode removed
   useEffect(() => {
