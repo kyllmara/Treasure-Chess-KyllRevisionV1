@@ -6,6 +6,7 @@
 !ISSUES.md
 !SECURITY_AUDIT.md
 
+
 # Environment variables
 .env
 .env.local

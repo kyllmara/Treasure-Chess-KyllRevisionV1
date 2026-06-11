@@ -20,8 +20,12 @@ const TRANSAK_API_KEY = Deno.env.get("TRANSAK_API_KEY") || "";
 const TRANSAK_API_SECRET = Deno.env.get("TRANSAK_API_SECRET") || "";
 const VAULT_ADDRESS = Deno.env.get("VAULT_ADDRESS") || "0x8b490D45A94DC7a967D1bDA4B160Fa1c99445EEa";
 
-const TRANSAK_BASE_URL = "https://global.transak.com";
-const TRANSAK_API_BASE = "https://api.transak.com";
+// Sandbox/test API keys (issued pre-KYB) only work against Transak's staging
+// environment. Set TRANSAK_ENV=staging while using test credentials; switch
+// to "production" once KYB is approved and live keys are issued.
+const TRANSAK_ENV = (Deno.env.get("TRANSAK_ENV") || "production").toLowerCase();
+const TRANSAK_BASE_URL = TRANSAK_ENV === "staging" ? "https://global-stg.transak.com" : "https://global.transak.com";
+const TRANSAK_API_BASE = TRANSAK_ENV === "staging" ? "https://api-stg.transak.com" : "https://api.transak.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
