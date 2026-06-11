@@ -10,6 +10,21 @@
 
 A full adversarial security review of the codebase revealed **2 planted backdoors** by a previous developer, **5 critical vulnerabilities**, **6 high-severity issues**, **5 medium**, **4 low**, and **4 informational findings**. Additionally, the codebase contained fundamental infrastructure bugs (wrong blockchain network, broken auth layer, dead third-party SDKs) that would have prevented the product from functioning in production.
 
+A follow-up audit of the ~159 `SECURITY DEFINER` PostgreSQL functions exposed
+to `authenticated` (Part 9) turned up a further **9 distinct authorization
+bug classes** spanning two waves of fixes (migrations 134–137) — including a
+systemic `auth.uid()`/`profiles.id` mismatch that silently broke RLS platform-
+wide, several functions that could mint arbitrary TCT or rewrite platform
+financial config with no admin check, and a "confused deputy" bug that let an
+attacker impersonate any admin whose UUID they could learn.
+
+A separate investigation (Part 10) found that **every wager settlement since
+migration 089 had silently failed** due to two stacked enum-value typos in
+`settle_escrow_with_rake` (`'pending_escrow'` and `'win'`/`'loss'`), leaving
+completed games' wagers stuck in escrow while the client was told settlement
+succeeded. Both typos are fixed (migrations 138, 139) and the 4 affected
+games have been re-settled.
+
 All issues have been identified, documented, and remediated. The platform was not safe to launch before this work was done.
 
 ---
@@ -482,6 +497,339 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 
 ---
 
+## Part 9 — SECURITY DEFINER Function Authorization Audit
+
+Discovered 2026-06-06/08 during a follow-up sweep of the ~159 `SECURITY DEFINER`
+PostgreSQL functions exposed to `authenticated`. These run with the function
+owner's privileges and bypass RLS entirely — a missing or broken caller-identity
+check inside one is a direct BOLA/IDOR (OWASP API Security #1), independent of
+any RLS policy correctness. This is the same vulnerability class as HIGH-02
+(`complete_house_challenge`) but found to be far more widespread than originally
+scoped.
+
+---
+
+### FN-01: Systemic `auth.uid()` vs `profiles.id` UUID Mismatch
+**Severity:** CRITICAL — Total Auth Failure  
+**Status:** Fixed (migration `134_fix_widespread_auth_uuid_mismatch.sql`, commit `9aa545e`)
+
+`profiles.id` (the value used everywhere as `user_id`/`creator_id`/`player_id`)
+is **not** the same value as `auth.uid()` — that maps to `profiles.auth_user_id`.
+Every RLS policy that compared a `profiles.id`-referencing column directly to
+`auth.uid()` was therefore always false: verified **0 of N** profiles satisfy
+`id::text = auth_user_id`. These policies silently denied access for 100% of
+users (fail-closed in this direction — but see FN-02 for the fail-open sibling
+bug, and PART A below for the worse fail-open bugs this masked).
+
+**Remediation:** Added `auth_profile_id()` helper —
+`SELECT id FROM profiles WHERE auth_user_id = auth.uid()::text` — confirmed to
+resolve correctly even inside nested `SECURITY DEFINER` calls (it reads
+session-level GUC settings that persist across role-switching). Rewrote every
+affected policy (`admin_audit_log`, `admin_sessions`, and others) to use it.
+
+---
+
+### FN-02: Accidentally `public`-Scoped "Service Role" RLS Policies
+**Severity:** CRITICAL — Direct Balance/Payout Manipulation  
+**Status:** Fixed (migration `135_drop_public_scoped_service_policies.sql`, commit `9aa545e`)
+
+Several "service role"/"system" policies were created with `roles: {public}`
+and `qual`/`with_check` of `true` instead of being scoped to `service_role`.
+Because `roles: public` is inherited by `authenticated` (and `anon`), these
+policies granted **any authenticated user full read/write access** to:
+- `balances` — directly edit anyone's TCT balance
+- `reward_payouts` — insert/update arbitrary payout rows
+- `tournament_matches` / `tournament_prizes` — full `ALL` access for anyone
+- `tournament_registrations` — update any registration
+
+**Remediation:** Dropped the mis-scoped policies (verified `service_role` has
+`BYPASSRLS` and never needed them) and added correctly `service_role`-scoped
+equivalents for documentation/intent.
+
+---
+
+### FN-03: ~20 `SECURITY DEFINER` Functions Missing Caller-Identity Checks
+**Severity:** CRITICAL — Fund Theft / Game Rigging / Admin Impersonation  
+**Status:** Fixed (migration `136_fix_function_authorization.sql`, commit `8ae1f98`)
+
+A systematic sweep found ~20 functions that take a `p_user_id` (or similar)
+parameter and perform privileged operations without verifying the caller
+actually owns that identity — including `request_withdrawal`,
+`update_user_profile`, `lock_balance_for_challenge`/`unlock_balance_for_challenge`,
+`register_for_tournament`/`unregister_from_tournament`, `start_tournament`,
+`start_house_challenge`, `mark_support_ticket_read_user`/`_admin`,
+`reject_fiat_deposit`, `get_user_reward_progress`, `get_user_withdrawals`,
+`is_user_admin`/`is_user_restricted` (data-leak of any user's admin/restriction
+status to any caller), and the livestream `start/update_stream_session` family.
+
+**Remediation:** Added `auth_profile_id()`-based ownership/admin checks to all
+~20 functions (self-or-admin pattern for the `is_user_*` lookups, session/row
+ownership checks via `EXISTS` for the rest).
+
+---
+
+### FN-04: PUBLIC-Grant Inheritance Hid 15 Dangerous Service-Role-Only Functions From Lockdown
+**Severity:** CRITICAL — Direct Fund Theft / Vault Manipulation  
+**Status:** Fixed (migration `136_fix_function_authorization.sql`, commit `8ae1f98`)
+
+15 functions that should only ever be called from trusted backend/edge-function
+contexts — `release_escrow_to_winner`, `release_escrow_refund`,
+`record_vault_deposit`, `update_ledger_balance`, `settle_escrow`,
+`settle_escrow_with_rake`, `release_escrow_funds`, `refund_escrow`,
+`lock_escrow_both_players`, `lock_balance_for_game`/`unlock_balance_for_game`,
+`sync_admin_status_by_email`, `initialize_platform_vault`,
+`run_vault_reconciliation`, `increment_balance_field` — were directly callable
+by any holder of the public anon key. An initial `REVOKE EXECUTE ... FROM anon,
+authenticated` appeared to fix this, but verification showed several were
+**still callable**: PostgreSQL's per-role `REVOKE` does not remove an inherited
+grant from `PUBLIC` (visible as `=X/postgres` in `pg_proc.proacl`), and these
+functions had been granted to `PUBLIC` directly.
+
+**Remediation:** Changed to `REVOKE EXECUTE ... FROM PUBLIC` + explicit
+`GRANT ... TO service_role` for all 15. Re-verified via simulated-auth tests
+(`SET LOCAL request.jwt.claims`) — all now correctly return `permission denied`
+for `authenticated` while `service_role` retains full access.
+
+---
+
+### FN-05: "Confused Deputy" Bug in Four Admin Functions
+**Severity:** CRITICAL — Full Admin Impersonation / Arbitrary TCT Minting  
+**Status:** Fixed (migration `137_fix_remaining_function_authorization.sql`, commit `339459d`)
+
+`admin_adjust_balance`, `admin_suspend_user`, `admin_unban_user`, and
+`admin_unsuspend_user` all checked `is_user_admin(p_admin_id)` —  where
+`p_admin_id` is a **caller-supplied parameter**, not the actual caller. Since
+`is_user_admin()` answers "is the user identified by *this UUID* an admin"
+rather than "is the *caller* an admin", any attacker who learned **any** real
+admin's profile UUID could pass it as `p_admin_id` and the check would pass —
+letting them mint themselves arbitrary TCT (amounts over 10,000 were gated by
+the equally-forgeable `is_user_super_admin(p_admin_id)`), unban/unsuspend
+themselves, or suspend any victim. This bug was *worse* than having no check at
+all because the code visibly "looked protected."
+
+**Remediation:** Replaced all four `is_user_admin(p_admin_id)` /
+`is_user_super_admin(p_admin_id)` checks with direct `EXISTS` checks against
+`auth_profile_id()` — the cryptographically-verified real caller (confirmed to
+resolve correctly even through nested `SECURITY DEFINER` calls). Verified: the
+exploit (passing the caller's own UUID, or any arbitrary UUID, as `p_admin_id`)
+is now blocked with `Insufficient privileges: caller is not an admin`, while a
+genuine admin succeeds regardless of what `p_admin_id` value they pass.
+
+---
+
+### FN-06: `admin_update_rake_settings` / `approve_fiat_deposit` Had No Admin Check At All
+**Severity:** CRITICAL — Platform-Wide Fee Manipulation / Arbitrary TCT Minting  
+**Status:** Fixed (migration `137_fix_remaining_function_authorization.sql`, commit `339459d`)
+
+- `admin_update_rake_settings` performed a bare `UPDATE platform_config SET
+  config_value = ...` with **zero caller verification** — any authenticated
+  user could rewrite the platform-wide rake percentage, treasury/reward-pool
+  split, minimum rake, or enabled flag.
+- `approve_fiat_deposit` had **zero caller verification** — any authenticated
+  user could approve any `pending` fiat deposit (including a self-submitted
+  fake one) and have `v_deposit.amount_tct` credited straight into
+  `balances.available_tct`: a free-money minting exploit.
+
+**Remediation:** Added the same admin-check pattern already used by its sibling
+`reject_fiat_deposit` — `EXISTS (SELECT 1 FROM profiles WHERE id =
+auth_profile_id() AND (is_admin OR is_super_admin))` — to both functions.
+
+---
+
+### FN-07: Missing Ownership Checks on User-Scoped Functions
+**Severity:** HIGH — Account Hijacking / Griefing  
+**Status:** Fixed (migration `137_fix_remaining_function_authorization.sql`, commit `339459d`)
+
+Four functions accepted a `p_user_id` parameter and acted on it with no check
+that the caller *was* that user:
+- `connect_streaming_platform` / `disconnect_streaming_platform` — any caller
+  could overwrite or wipe **another user's** stream platform connection,
+  including planting attacker-controlled encrypted tokens or revoking theirs
+- `mark_notifications_read` — any caller could mark another user's
+  notifications as read (hide alerts/griefing)
+- `claim_dragon_reward` — any caller could force-claim another user's reward
+  (funds land with the rightful owner, but it bypasses their consent, marks
+  it claimed, and queues an on-chain payout they didn't initiate)
+
+**Remediation:** Added `IF auth_profile_id() IS DISTINCT FROM p_user_id THEN
+RAISE / RETURN 'Unauthorized' END IF` ownership guards to all four.
+
+---
+
+### FN-08: `is_user_super_admin` Leaked Any User's Super-Admin Status
+**Severity:** MEDIUM — Information Disclosure  
+**Status:** Fixed (migration `137_fix_remaining_function_authorization.sql`, commit `339459d`)
+
+Same data-leak class as `is_user_admin`/`is_user_restricted` (fixed in FN-03):
+any authenticated caller could query whether an arbitrary `p_user_id` was a
+super admin — useful recon for the FN-05 confused-deputy attack and other
+targeting.
+
+**Remediation:** Applied the same self-or-admin check pattern: callers may look
+up their own status freely; looking up someone else's requires the caller to be
+an admin.
+
+---
+
+### FN-09: Eight Dead Functions With Zero Checks — Live Attack Surface via Raw RPC
+**Severity:** HIGH — Forced Game Completion / Escrow Theft / Withdrawal Fraud  
+**Status:** Fixed (migration `137_fix_remaining_function_authorization.sql`, commit `339459d`)
+
+Eight functions had no caller checks whatsoever and, despite being unreachable
+through any current client code path or edge function (confirmed via grep
+across `lib/`, `app/`, `stores/`, `components/`, `contexts/`,
+`supabase/functions/`), remained directly callable by any anon-key holder via
+raw RPC:
+
+| Function | What an attacker could do |
+|---|---|
+| `complete_game` | Force ANY in-progress game to "complete" with themselves as winner, corrupt ELO/stats, **and trigger `settle_escrow` to steal the wager pot** (the internal call succeeds regardless of FN-04's lockdown — both are owned by `postgres`) |
+| `finish_game` | Force ANY game's status/result/winner to an arbitrary value (the function actually used by `game-complete`, but with no participant check) |
+| `complete_crypto_withdrawal` | Mark ANY processing withdrawal "completed" with a fake tx hash — accounting fraud |
+| `fail_withdrawal` | Fail/refund ANY user's pending withdrawal — griefing/DoS |
+| `cancel_withdrawal` | Cancel another user's withdrawal if its ID is known (its `WHERE` clause provided implicit but fragile protection) |
+| `get_pending_deposits` | IDOR — read another user's pending deposit records |
+| `upsert_user_wallet` | Overwrite ANY user's linked wallet address/chain/approval flags |
+| `queue_reward_payout` | Queue arbitrary bogus payout records against any user's wallet |
+
+**Remediation:** Rather than retrofit bespoke checks onto unused attack
+surface, locked all eight down the same way as FN-04: `REVOKE EXECUTE ... FROM
+PUBLIC, anon, authenticated` + `GRANT EXECUTE ... TO service_role`. (All eight
+are owned by `postgres`, so the one legitimate internal call chain —
+`claim_dragon_reward` → `PERFORM queue_reward_payout(...)` — keeps working,
+since a `SECURITY DEFINER` function executes internal calls as its owner, who
+has implicit `EXECUTE` on its own functions.)
+
+The first lockdown attempt (mirroring FN-04's `REVOKE ... FROM PUBLIC`) silently
+failed for 7 of these 8 — they additionally carried an **explicit** grant to
+`authenticated` (`authenticated=X/postgres` in `pg_proc.proacl`) separate from
+the `PUBLIC` grant, which a `PUBLIC`-only revoke does not remove. Caught by
+re-running the simulated-auth verification suite and seeing business-logic
+errors (`Game not found`, `Withdrawal not found...`) instead of `permission
+denied` — corrected to revoke from `PUBLIC, anon, authenticated` explicitly,
+then re-verified clean.
+
+---
+
+**Verification methodology (FN-03 through FN-09):** All fixes were verified
+live against the linked database inside rolled-back transactions using
+`SET LOCAL role = authenticated; SET LOCAL "request.jwt.claims" = '{"sub":
+"<uuid>", "role":"authenticated"}'` to simulate the exact caller context
+PostgREST presents, with a `pg_temp.try_call()` helper to batch-test attacker
+paths (must be `BLOCKED`), legitimate self/owner paths (must `SUCCEED`), and —
+for the admin functions — a temporarily-admin-flagged test account exercising
+the legitimate admin path with a deliberately wrong `p_admin_id` (proving
+authorization now derives solely from the real caller's identity).
+
+---
+
+## Part 10 — Wager Settlement Pipeline Broken Since Migration 089
+
+Discovered 2026-06-11 while investigating a player report that a completed
+wager game never updated either player's balance. Root cause: two stacked
+enum-value typos in `settle_escrow_with_rake` — the function `game-complete`
+calls to pay the winner and unlock the loser's stake — meant **every wager
+settlement since migration 089 silently failed**. Game completion (ELO,
+history, etc.) proceeded normally on a separate code path, and the client was
+told settlement succeeded, so the failure was invisible until someone checked
+their TCT balance.
+
+---
+
+### WS-01: `'pending_escrow'` Is Not a Valid `escrow_status` Enum Value
+**Severity:** Critical — All Wager Settlements Silently Failed
+**Status:** Fixed (migration `138_fix_settle_escrow_status_check_typo.sql`)
+
+`settle_escrow_with_rake`'s very first guard read:
+
+```sql
+IF v_escrow.status NOT IN ('active', 'pending_escrow') THEN
+    RAISE EXCEPTION 'Escrow already settled. Status: %', v_escrow.status;
+END IF;
+```
+
+but `escrow_status` (migration 001) is `ENUM ('active','settled','refunded',
+'disputed')` — `'pending_escrow'` was never a member and never added via
+`ALTER TYPE ... ADD VALUE`. The typo was introduced in migration 089 ("fix
+settle_escrow_with_rake to accept both 'active' and 'pending_escrow'
+statuses") and copied forward unchanged through migrations 116 and 128.
+
+**Effect:** every invocation raised `ERROR 22P02: invalid input value for
+enum escrow_status: "pending_escrow"` on its very first comparison,
+regardless of the escrow's real status. Postgres rolled back the entire
+function — no balance, transaction, or escrow-status row was ever updated.
+`game-complete` caught the RPC error, fell back to legacy `settle_escrow()`
+(which itself just calls `settle_escrow_with_rake` — same failure), the
+fallback's failure was swallowed without throwing, and `game-complete`
+returned `success: true` to the client regardless.
+
+**Blast radius:** 4 completed games (2026-06-06 → 2026-06-10) left with
+wagers stuck in `active` escrows, totaling 80 TCT in locked funds across the
+2 active test accounts.
+
+**Fix:** Recreated the function with `IF v_escrow.status != 'active' THEN` —
+`'pending_escrow'` represented no real escrow state and was simply dead/wrong.
+
+---
+
+### WS-02: `'win'` / `'loss'` Are Not Valid `transaction_type` Enum Values
+**Severity:** Critical — All Wager Settlements Silently Failed (dormant, masked by WS-01)
+**Status:** Fixed (migration `139_fix_settle_escrow_transaction_type_typo.sql`)
+
+Once WS-01 was fixed, every settlement immediately hit a second, previously
+unreachable bug on the win/loss path: the ledger inserts used
+`type = 'win'` and `type = 'loss'`, neither of which is a member of
+`transaction_type` (migration 001: `ENUM ('deposit','withdraw','wager_lock',
+'wager_unlock','win_payout','loss_deduct','commission','refund',
+'reward_payout')`). This raised `ERROR 22P02: invalid input value for enum
+transaction_type: "win"`, rolling back the whole settlement exactly like
+WS-01. The draw branch was unaffected — its `'refund'` type is valid.
+
+**Fix:** Changed the two literals to `'win_payout'` and `'loss_deduct'`, the
+correct enum members.
+
+---
+
+### Remediation: Re-settled the 4 Stuck Games
+
+After applying migrations 138 and 139, `settle_escrow_with_rake` was called
+for each of the 4 stuck `active` escrows. All 4 settled cleanly: balances,
+`transactions` rows, and `game_escrows.status` (`settled`/`refunded`) were
+updated correctly, and rake was credited to `vault_statistics`.
+
+### Data Correction: 999,999 TCT of Untracked Test Funds
+
+While investigating, `eneh4kene`'s (`cdc0c899-...`) `balances.available_tct`
+was found to be **1,002,620 TCT** against `total_deposited_tct` of only
+2,625. The financial invariant `available = deposits − locked_for_active_games
++ win_payouts` holds exactly for the other test account
+(`d9fea1fc`: 125 − 40 + 36 = 121 ✓) but was off by **exactly 999,999** for
+`cdc0c899` (correct value: 2,621), with no corresponding `transactions` row —
+confirming a manual test-fund injection rather than a bug in
+`deposit-monitor`/`record_vault_deposit` (both reviewed and correct).
+Per user confirmation that these were artificially-added test funds, corrected
+directly: `UPDATE balances SET available_tct = available_tct - 999999 WHERE
+user_id = 'cdc0c899-5c2d-47c7-8544-09962787205f'`. Migrations 043/044
+(game-earnings backfills for unrelated profile UUIDs) were ruled out as the
+cause.
+
+### Deferred: `record_rake_settlement` / `record_draw_refund` Signature Mismatches
+**Severity:** Low — Cosmetic, ledger-only
+**Status:** Open
+
+Both helper functions (migration 022) are called with argument
+counts/orders that don't match their definitions
+(`record_rake_settlement` takes 7 params, called with 8;
+`record_draw_refund`'s param order/types don't match the call site). Both
+calls are wrapped in `EXCEPTION WHEN OTHERS THEN v_ledger_tx_id := NULL`, so
+settlement still succeeds but `ledger_transaction_id` is always `NULL` and no
+row is written to whatever ledger table these functions target. Fixing this
+requires a design decision on how treasury rake should be double-recorded
+(via `vault_statistics` AND a ledger table) without double-counting — left
+open pending that decision.
+
+---
+
 ## Remediation Status Overview
 
 | Category | Total | Fixed | Deferred / Open |
@@ -494,7 +842,9 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 | Informational | 4 | 1 | 3 |
 | Infrastructure | 7 | 7 | 0 |
 | Matchmaking | 9 | 8 | 1 (MATCH-05 dead code) |
-| **Total** | **42** | **39** | **3** |
+| Function Authorization | 9 | 9 | 0 |
+| Wager Settlement | 3 | 2 | 1 (ledger arg-signature mismatch) |
+| **Total** | **54** | **50** | **4** |
 
 ---
 
@@ -515,7 +865,11 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 | `2309c07` | Remove Magic SDK wrapper, remove guest mode, enforce login-required |
 | `a2733b2` | Replace Magic SDK auth with Supabase Auth |
 | `4f99d18` | Consolidate TCT rate constant into lib/tct.ts |
-| *(pending)* | Matchmaking overhaul — atomic game creation, auth, navigation fix |
+| `80b873f` | Matchmaking overhaul — atomic game creation, auth, navigation fix |
+| `9aa545e` | Fix widespread auth.uid()/profile-UUID mismatch + public-scoped service policies (migrations 134, 135) |
+| `8ae1f98` | Lock down SECURITY DEFINER RPC functions missing caller-identity checks (migration 136) |
+| `339459d` | Fix second wave of SECURITY DEFINER authorization bugs — confused deputy, missing admin/ownership checks, dead-function lockdown (migration 137) |
+| `92da8c2` | Fix settle_escrow_with_rake enum typos that broke all wager settlements since migration 089 (migrations 138, 139) |
 
 ---
 
@@ -524,6 +878,6 @@ The withdrawal screen showed two permanently-disabled cards ("Bridge to Other Ch
 1. **Investigate `0xf0f60aaa8e0d5055FD1590F7D4bcaac1C180F03b` on basescan.org** — determine if house challenge entry fees were diverted during alpha.
 2. **Investigate `0xDE50B9A124269a06542bBc4e08De71a5e6cFa438` on basescan.org** — determine if wallet payment USDC was diverted.
 3. **Set `CRON_SECRET` in Supabase project secrets** — required for `deposit-monitor`, `process-withdrawals`, `process-house-payout`, `process-reward-payout`, and `matchmaking` to accept cron calls.
-4. **Apply migrations 118–123** via `supabase db push` or SQL editor.
+4. **Apply migrations 118–123** via `supabase db push` or SQL editor. *(Migrations 134–137 — the Part 9 function-authorization fixes — have already been applied directly to the linked production DB and verified live; confirm 118–123 have likewise landed.)*
 5. **Delete `magic-auth` edge function** from Supabase dashboard (removed from repo but may still be deployed).
 6. **Insert `platform_vault` row** in `platform_config` with the correct vault address before deploying relay-transaction.
