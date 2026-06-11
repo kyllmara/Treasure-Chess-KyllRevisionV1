@@ -25,6 +25,12 @@ completed games' wagers stuck in escrow while the client was told settlement
 succeeded. Both typos are fixed (migrations 138, 139) and the 4 affected
 games have been re-settled.
 
+A final pair of client-side bugs (Part 11) caused the home screen to
+permanently under-report a user's TCT balance (sourced from an always-empty
+on-chain wallet instead of the off-chain ledger) and, on slow cold starts,
+to silently bounce authenticated users into "Guest" mode when the first
+profile fetch took longer than an 8-second timeout. Both are fixed.
+
 All issues have been identified, documented, and remediated. The platform was not safe to launch before this work was done.
 
 ---
@@ -830,6 +836,64 @@ open pending that decision.
 
 ---
 
+## Part 11 — Home Screen Balance Mismatch & Auth Session Timeout
+
+Discovered 2026-06-11 while comparing the home screen ("Balance: 🪙 0") to
+the wallet screen ("Available Balance: 2,621 $TCT") for the same logged-in
+account. Two unrelated client-side bugs were found and fixed.
+
+---
+
+### BAL-01: Home Screen Sourced `availableTct` from an Always-Empty On-Chain Balance
+**Severity:** High — Incorrect Balance Displayed to Users
+**Status:** Fixed (commit `f88cc97`)
+**File:** `hooks/useHomeStats.ts`
+
+`useHomeStats` independently fetched the user's on-chain USDC balance via a
+Base mainnet RPC `eth_call` to `balanceOf`, converted it to TCT, and used
+that value for `HomeStats.availableTct`. During alpha, TCT is tracked
+entirely off-chain in `balances.available_tct` — embedded wallets hold ~0
+USDC on-chain — so the home screen always displayed "Balance: 🪙 0"
+regardless of the user's real balance, while `app/wallet.tsx`,
+`stores/walletStore.ts`, and `stores/userStore.ts` all correctly read
+`balances.available_tct` and showed the right value.
+
+**Fix:** Removed the on-chain RPC-fetch path entirely (constants,
+`fetchOnChainUsdcBalance`, wallet-address lookup) and changed
+`mapToHomeStats` to read `availableTct` directly from
+`balances.available_tct`, matching the rest of the app.
+
+**Verification:** Home and wallet screens now show matching balances
+(2,621 / 121 $TCT on the two test accounts).
+
+---
+
+### AUTH-01: Slow Cold-Start Profile Fetch Discarded a Valid Session, Stranding the User on "Guest"
+**Severity:** High — Authenticated Users Bounced to Guest Mode
+**Status:** Fixed (commit `f88cc97`)
+**File:** `contexts/AuthContext.tsx`
+
+On a cold-booted device/emulator, Supabase restores a valid session and
+fires `SIGNED_IN`/`INITIAL_SESSION`, but the first `fetchProfileByAuthId`
+REST call after a cold connection consistently took ~16s to resolve —
+exceeding `handleSession`'s 8-second timeout. When the timeout fired,
+`handleSession` discarded the perfectly valid session and fell back to the
+`GUEST_PROFILE` object, permanently stranding the user on "Guest" (no
+username, no ELO, "Balance: 🪙 0") until the app was force-restarted, even
+though the profile fetch would have succeeded a few seconds later.
+
+**Fix:** `handleSession` now retries `fetchProfileByAuthId` up to 2 times
+(8s timeout each, ~16s worst case) before giving up, and the init
+`useEffect`'s hard-cap `loadingTimeout` was raised from 10s to 20s so a
+slow-but-successful retry can resolve to "authenticated" before the cap
+fires.
+
+**Verification:** 2/2 cold relaunches on `emulator-5554` recovered to the
+authenticated `eneh4kene` profile (Balance: 🪙 2.6k, ELO: 1231), confirmed
+via `adb logcat` and screenshots.
+
+---
+
 ## Remediation Status Overview
 
 | Category | Total | Fixed | Deferred / Open |
@@ -844,7 +908,8 @@ open pending that decision.
 | Matchmaking | 9 | 8 | 1 (MATCH-05 dead code) |
 | Function Authorization | 9 | 9 | 0 |
 | Wager Settlement | 3 | 2 | 1 (ledger arg-signature mismatch) |
-| **Total** | **54** | **50** | **4** |
+| Balance & Auth (client) | 2 | 2 | 0 |
+| **Total** | **56** | **52** | **4** |
 
 ---
 
@@ -870,6 +935,7 @@ open pending that decision.
 | `8ae1f98` | Lock down SECURITY DEFINER RPC functions missing caller-identity checks (migration 136) |
 | `339459d` | Fix second wave of SECURITY DEFINER authorization bugs — confused deputy, missing admin/ownership checks, dead-function lockdown (migration 137) |
 | `92da8c2` | Fix settle_escrow_with_rake enum typos that broke all wager settlements since migration 089 (migrations 138, 139) |
+| `f88cc97` | Fix home screen balance source (off-chain ledger, not on-chain RPC) and auth session timeout stranding users on Guest |
 
 ---
 
