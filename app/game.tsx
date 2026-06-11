@@ -28,6 +28,7 @@ import { generateText } from "@rork-ai/toolkit-sdk";
 import { VictoryCelebration, AnimatedDragons, SpinningRays } from "@/components/VictoryCelebration";
 import { AntiCheatService, createAntiCheatService, type GameMoveData } from "@/lib/antiCheat";
 import { RewardUnlockAnimation } from "@/components/RewardUnlockAnimation";
+import { getDragonAvatarSource, TCT_COIN_IMAGE } from "@/constants/dragonAssets";
 import { useRewardTriggers, type UnlockedReward, type EarnedAchievement } from "@/hooks/useRewards";
 import { useWalletStore } from "@/stores/walletStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -1134,7 +1135,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <View style={styles.feedbackCard}>
             <View style={styles.dragonAvatarContainer}>
               <Image
-                source={{ uri: user.profilePicture }}
+                source={getDragonAvatarSource(user.profilePicture)}
                 style={styles.dragonAvatar}
               />
               <View style={styles.speechBubble}>
@@ -1279,7 +1280,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
                       ]}
                     >
                       <Image
-                        source={{ uri: 'https://rork.app/pa/on4qgbbbix2sig4yr0h6x/tct_coin' }}
+                        source={TCT_COIN_IMAGE}
                         style={styles.coinImage}
                       />
                     </Animated.View>
@@ -1293,7 +1294,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <View style={styles.victoryHeader}>
             <View style={styles.victoryUserInfo}>
               <Image
-                source={{ uri: user.profilePicture }}
+                source={getDragonAvatarSource(user.profilePicture)}
                 style={styles.victoryProfilePic}
               />
               <View style={styles.victoryUserDetails}>
@@ -1756,8 +1757,8 @@ Be friendly and constructive. Keep it brief and conversational.`;
           </View>
           <View style={styles.playerInfoCard}>
             <View style={styles.playerAvatarSection}>
-              <Image 
-                source={{ uri: user.profilePicture }} 
+              <Image
+                source={getDragonAvatarSource(user.profilePicture)}
                 style={styles.playerAvatar}
               />
               <Text style={styles.playerCountryFlag}>{getCountryFlag(user.country)}</Text>

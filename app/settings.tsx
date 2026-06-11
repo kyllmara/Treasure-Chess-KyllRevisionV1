@@ -24,6 +24,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { BoardTheme, PieceStyle } from "@/types";
 import { ChessPieceComponent } from "@/components/ChessPieces";
 import { useDragonAvatars } from "@/hooks/useDragonAvatars";
+import { getDragonAvatarSource } from "@/constants/dragonAssets";
 
 // Security module imports
 import {
@@ -990,7 +991,7 @@ export default function SettingsScreen() {
           {settingsTab === "user" && (
             <>
           <View style={styles.avatarSection}>
-            <Image source={{ uri: profilePicture }} style={styles.avatar} />
+            <Image source={getDragonAvatarSource(profilePicture)} style={styles.avatar} />
             <TouchableOpacity
               style={styles.changeAvatarButton}
               onPress={handleChangeAvatar}
@@ -1519,7 +1520,7 @@ export default function SettingsScreen() {
                       onPress={() => handleSelectAvatar(avatarUrl, index)}
                     >
                       <Image
-                        source={{ uri: avatarUrl }}
+                        source={getDragonAvatarSource(avatarUrl)}
                         style={[
                           styles.avatarOptionImage,
                           isLocked && styles.avatarOptionImageLocked,

@@ -28,6 +28,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useHomeStats, type ValueChangeEvent } from "@/hooks/useHomeStats";
 import { useUserStore } from "@/stores/userStore";
 import { createChallengeService } from "@/lib/challenges";
+import { getDragonAvatarSource } from "@/constants/dragonAssets";
 
 const { width } = Dimensions.get("window");
 
@@ -908,7 +909,7 @@ export default function HomeScreen() {
             <View style={styles.userInfo}>
               <TouchableOpacity onPress={handleEggClick} disabled={displayStats.profilePicture !== DRAGON_EGG_IMAGE}>
                 <Image
-                  source={{ uri: displayStats.profilePicture }}
+                  source={getDragonAvatarSource(displayStats.profilePicture)}
                   style={styles.profilePic}
                 />
               </TouchableOpacity>

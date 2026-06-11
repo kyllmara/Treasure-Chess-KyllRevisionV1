@@ -29,6 +29,7 @@ import type { LeaderboardPlayer } from "@/lib/leaderboard";
 import type { RankChange } from "@/hooks/useLeaderboard";
 import { usePlayerAchievementBadges } from "@/hooks/useRewards";
 import { RARITY_COLORS, type AchievementRarity, type FeaturedAchievement } from "@/lib/rewards";
+import { getDragonAvatarSource } from "@/constants/dragonAssets";
 
 // ============================================================================
 // Types
@@ -314,7 +315,7 @@ export const PodiumCard = memo(function PodiumCard({
       {/* Avatar */}
       {player.profilePictureUrl ? (
         <Image
-          source={{ uri: player.profilePictureUrl }}
+          source={getDragonAvatarSource(player.profilePictureUrl)}
           style={styles.profilePicturePodium}
         />
       ) : (
@@ -428,7 +429,7 @@ export const LeaderboardRow = memo(function LeaderboardRow({
       {/* Avatar */}
       {player.profilePictureUrl ? (
         <Image
-          source={{ uri: player.profilePictureUrl }}
+          source={getDragonAvatarSource(player.profilePictureUrl)}
           style={styles.profilePictureRow}
         />
       ) : (

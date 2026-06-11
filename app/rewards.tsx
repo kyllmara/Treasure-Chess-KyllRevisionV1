@@ -62,6 +62,7 @@ import {
 } from "@/lib/rewards";
 import { useSoundAndHaptics } from "@/hooks/useSoundAndHaptics";
 import { useDragonAvatars } from "@/hooks/useDragonAvatars";
+import { getDragonAvatarSource } from "@/constants/dragonAssets";
 import { Lock } from "lucide-react-native";
 
 // ============================================================================
@@ -351,7 +352,7 @@ function DragonRewardCard({ reward, onClaim, isClaiming }: DragonRewardCardProps
         {hasThumbnail ? (
           <View style={[styles.dragonThumbnailContainer, !isUnlocked && styles.dragonThumbnailLocked]}>
             <Image
-              source={{ uri: reward.avatarUrl! }}
+              source={getDragonAvatarSource(reward.avatarUrl)}
               style={[styles.dragonThumbnail, !isUnlocked && { opacity: 0.4 }]}
             />
             {!isUnlocked && (

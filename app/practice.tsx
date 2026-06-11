@@ -18,6 +18,7 @@ import { VictoryCelebration, AnimatedDragons } from "@/components/VictoryCelebra
 import { useApp } from "@/contexts/AppContext";
 import { ChessPieceComponent } from "@/components/ChessPieces";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { getDragonAvatarSource } from "@/constants/dragonAssets";
 import type { BoardTheme } from "@/types";
 
 const { width } = Dimensions.get("window");
@@ -922,7 +923,7 @@ export default function PracticeScreen() {
           >
             <View style={styles.difficultyContent}>
               <Image
-                source={{ uri: BABY_DRAGON_AVATARS[0] }}
+                source={getDragonAvatarSource(BABY_DRAGON_AVATARS[0])}
                 style={styles.difficultyAvatar}
               />
               <View style={styles.difficultyInfo}>
@@ -937,7 +938,7 @@ export default function PracticeScreen() {
             onPress={() => { setDifficulty("rookie"); setShowTimerSelection(true); }}
           >
             <View style={styles.difficultyContent}>
-              <Image source={{ uri: TEENAGE_DRAGON_AVATARS[0] }} style={styles.difficultyAvatar} />
+              <Image source={getDragonAvatarSource(TEENAGE_DRAGON_AVATARS[0])} style={styles.difficultyAvatar} />
               <View style={styles.difficultyInfo}>
                 <Text style={styles.difficultyName}>Rookie</Text>
                 <Text style={styles.difficultyDesc}>Some challenge</Text>
@@ -950,7 +951,7 @@ export default function PracticeScreen() {
             onPress={() => { setDifficulty("adept"); setShowTimerSelection(true); }}
           >
             <View style={styles.difficultyContent}>
-              <Image source={{ uri: NON_FIERCE_ADULT_AVATARS[0] }} style={styles.difficultyAvatar} />
+              <Image source={getDragonAvatarSource(NON_FIERCE_ADULT_AVATARS[0])} style={styles.difficultyAvatar} />
               <View style={styles.difficultyInfo}>
                 <Text style={styles.difficultyName}>Adept</Text>
                 <Text style={styles.difficultyDesc}>Real competition</Text>
@@ -963,7 +964,7 @@ export default function PracticeScreen() {
             onPress={() => { setDifficulty("expert"); setShowTimerSelection(true); }}
           >
             <View style={styles.difficultyContent}>
-              <Image source={{ uri: FIERCE_ADULT_AVATARS[0] }} style={styles.difficultyAvatar} />
+              <Image source={getDragonAvatarSource(FIERCE_ADULT_AVATARS[0])} style={styles.difficultyAvatar} />
               <View style={styles.difficultyInfo}>
                 <Text style={styles.difficultyName}>Expert</Text>
                 <Text style={styles.difficultyDesc}>Ultimate challenge</Text>
@@ -1055,7 +1056,7 @@ export default function PracticeScreen() {
           </View>
         )}
         <View style={styles.opponentInfo}>
-          {botAvatar && <Image source={{ uri: botAvatar }} style={styles.opponentAvatar} />}
+          {botAvatar && <Image source={getDragonAvatarSource(botAvatar)} style={styles.opponentAvatar} />}
           <View>
             <Text style={styles.infoText}>Opponent: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Bot</Text>
           </View>
