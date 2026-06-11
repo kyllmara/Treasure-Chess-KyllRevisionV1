@@ -289,6 +289,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (profileSyncInProgress.current) return;
     profileSyncInProgress.current = true;
 
+    const PROFILE_FETCH_TIMEOUT_MS = 8000;
+    const PROFILE_FETCH_MAX_ATTEMPTS = 2;
+
     const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
       Promise.race([
         promise,
@@ -301,7 +304,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const authUserId = session.user.id;
       const email = session.user.email ?? null;
 
-      let profile = await withTimeout(fetchProfileByAuthId(authUserId), 8000);
+      // Retry the profile fetch before giving up — a slow first request (e.g. a
+      // cold-booted emulator/device) shouldn't discard a valid session and bounce
+      // the user to Guest mode.
+      let profile: Profile | null = null;
+      for (let attempt = 1; attempt <= PROFILE_FETCH_MAX_ATTEMPTS; attempt++) {
+        try {
+          profile = await withTimeout(fetchProfileByAuthId(authUserId), PROFILE_FETCH_TIMEOUT_MS);
+          break;
+        } catch (e) {
+          if (attempt === PROFILE_FETCH_MAX_ATTEMPTS) throw e;
+          logger.warn("Auth", `Profile fetch attempt ${attempt} timed out, retrying`, { error: String(e) });
+        }
+      }
 
       if (!profile) {
         profile = await createProfile({
@@ -382,11 +397,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    // Hard cap: never stay in isLoading state longer than 10 seconds
+    // Hard cap: never stay in isLoading state longer than 20 seconds.
+    // Set above PROFILE_FETCH_TIMEOUT_MS * PROFILE_FETCH_MAX_ATTEMPTS in handleSession
+    // so a slow-but-successful retry can still resolve to "authenticated" first.
     const loadingTimeout = setTimeout(() => {
       setState((s) => {
         if (!s.isLoading) return s;
-        logger.warn("Auth", "Auth loading timed out after 10s, falling back to guest");
+        logger.warn("Auth", "Auth loading timed out after 20s, falling back to guest");
         return {
           ...initialState,
           mode: "guest",
@@ -396,7 +413,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profile: GUEST_PROFILE,
         };
       });
-    }, 10000);
+    }, 20000);
 
     // Subscribe to auth state changes — this is the single source of truth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

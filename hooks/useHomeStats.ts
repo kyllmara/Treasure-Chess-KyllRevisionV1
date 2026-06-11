@@ -34,68 +34,6 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Profile, Balance } from "@/types/supabase";
 
 // ============================================================================
-// On-Chain USDC Balance Constants
-// ============================================================================
-
-// Use environment variables for network configuration
-const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_CONTRACT || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base
-const USDC_DECIMALS = 6;
-const USDC_TO_TCT_RATE = 25; // 1 USDC = 25 TCT
-const RPC_URL = process.env.EXPO_PUBLIC_RPC_URL || "https://mainnet.base.org";
-const BALANCE_OF_SELECTOR = "0x70a08231";
-
-// ============================================================================
-// On-Chain Balance Fetcher
-// ============================================================================
-
-async function fetchOnChainUsdcBalance(walletAddress: string): Promise<number> {
-  try {
-    const paddedAddress = walletAddress.slice(2).toLowerCase().padStart(64, "0");
-    const callData = BALANCE_OF_SELECTOR + paddedAddress;
-
-    if (__DEV__) {
-      console.log("[useHomeStats] Fetching USDC balance", {
-        rpcUrl: RPC_URL,
-        usdcContract: USDC_CONTRACT_ADDRESS,
-        walletAddress,
-      });
-    }
-
-    const response = await fetch(RPC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        method: "eth_call",
-        params: [
-          {
-            to: USDC_CONTRACT_ADDRESS,
-            data: callData,
-          },
-          "latest",
-        ],
-        id: 1,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (data.error) {
-      console.error("[useHomeStats] RPC error fetching USDC balance:", data.error);
-      return 0;
-    }
-
-    const balanceWei = BigInt(data.result || "0x0");
-    const balanceUsdc = Number(balanceWei) / Math.pow(10, USDC_DECIMALS);
-
-    return balanceUsdc;
-  } catch (error) {
-    console.error("[useHomeStats] Error fetching on-chain USDC balance:", error);
-    return 0;
-  }
-}
-
-// ============================================================================
 // Types
 // ============================================================================
 
@@ -208,9 +146,9 @@ function calculateNetEarnings(won: number, lost: number): number {
 
 /**
  * Map server data to HomeStats
- * Now uses on-chain USDC balance converted to TCT for availableTct
+ * The `balances.available_tct` row is the source of truth for TCT (off-chain ledger)
  */
-function mapToHomeStats(profile: Profile, balance: Balance | null, onChainTctBalance: number): HomeStats {
+function mapToHomeStats(profile: Profile, balance: Balance | null): HomeStats {
   const gamesWon = profile.games_won;
   const gamesLost = profile.games_lost;
   const gamesPlayed = profile.games_played;
@@ -227,8 +165,8 @@ function mapToHomeStats(profile: Profile, balance: Balance | null, onChainTctBal
     longestStreak: profile.longest_streak,
     username: profile.username,
     avatarIndex: profile.avatar_index,
-    availableTct: onChainTctBalance, // Use on-chain USDC converted to TCT
-    lockedTct: balance?.locked_tct ?? 0, // Locked funds still from Supabase
+    availableTct: balance?.available_tct ?? 0,
+    lockedTct: balance?.locked_tct ?? 0,
     totalWonTct,
     totalLostTct,
     winRate: calculateWinRate(gamesWon, gamesPlayed),
@@ -268,10 +206,6 @@ export function useHomeStats(): UseHomeStatsResult {
   const { isAuthenticated, isGuest } = useAuth();
   const userStore = useUserStore();
   const walletStore = useWalletStore();
-
-  const walletAddress = useMemo(() => {
-    return userStore.profile?.embeddedWalletAddress ?? null;
-  }, [userStore.profile?.embeddedWalletAddress]);
 
   // State
   const [stats, setStats] = useState<HomeStats | null>(null);
@@ -427,10 +361,8 @@ export function useHomeStats(): UseHomeStatsResult {
     }
 
     try {
-      if (__DEV__) console.log("[useHomeStats] Fetching stats with walletAddress:", walletAddress);
-
-      // Fetch profile, balance, and on-chain USDC in parallel
-      const [profileResult, balanceResult, onChainUsdcBalance] = await Promise.all([
+      // Fetch profile and balance in parallel
+      const [profileResult, balanceResult] = await Promise.all([
         supabase
           .from("profiles")
           .select("*")
@@ -441,7 +373,6 @@ export function useHomeStats(): UseHomeStatsResult {
           .select("*")
           .eq("user_id", userId)
           .single(),
-        walletAddress ? fetchOnChainUsdcBalance(walletAddress) : Promise.resolve(0),
       ]);
 
       if (profileResult.error) {
@@ -451,11 +382,7 @@ export function useHomeStats(): UseHomeStatsResult {
       const profile = profileResult.data as Profile;
       const balance = balanceResult.error ? null : (balanceResult.data as Balance);
 
-      // Convert on-chain USDC to TCT (1 USDC = 25 TCT)
-      const onChainTctBalance = Math.floor(onChainUsdcBalance * USDC_TO_TCT_RATE);
-      if (__DEV__) console.log("[useHomeStats] On-chain USDC:", onChainUsdcBalance, "= TCT:", onChainTctBalance);
-
-      const homeStats = mapToHomeStats(profile, balance, onChainTctBalance);
+      const homeStats = mapToHomeStats(profile, balance);
 
       // Update animated values
       updateAnimatedValues(homeStats, previousStatsRef.current);
@@ -482,7 +409,7 @@ export function useHomeStats(): UseHomeStatsResult {
       }));
       return null;
     }
-  }, [userStore.profile?.id, walletAddress, updateAnimatedValues]);
+  }, [userStore.profile?.id, updateAnimatedValues]);
 
   // --------------------------------------------------------------------------
   // Refresh with Debounce
