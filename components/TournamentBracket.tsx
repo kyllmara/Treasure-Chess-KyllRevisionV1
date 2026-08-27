@@ -82,7 +82,7 @@ function MatchCard({
   const isByeMatch = isBye(match);
 
   const getStatusColor = () => {
-    if (match.status === "completed") return "#4ECDC4";
+    if (match.status === "completed") return "#4CAF82";
     if (match.status === "in_progress") return "#FFB347";
     if (match.status === "bye") return "#A0A0A0";
     return "#666";
@@ -91,9 +91,9 @@ function MatchCard({
   const getResultIcon = () => {
     switch (userResult) {
       case "win":
-        return <CheckCircle size={16} color="#4ECDC4" />;
+        return <CheckCircle size={16} color="#4CAF82" />;
       case "loss":
-        return <XCircle size={16} color="#FF6B6B" />;
+        return <XCircle size={16} color="#E05C5C" />;
       case "draw":
         return <Minus size={16} color="#FFB347" />;
       case "bye":
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   },
   matchCardHighlight: {
     borderWidth: 2,
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   matchCardBye: {
     opacity: 0.7,
@@ -645,10 +645,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   resultWin: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   resultLoss: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   resultDraw: {
     color: "#FFB347",

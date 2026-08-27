@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   detailValueMono: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontFamily: "monospace",
   },
   adminNoteRow: {

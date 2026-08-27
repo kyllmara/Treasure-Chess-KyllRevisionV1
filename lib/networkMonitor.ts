@@ -46,7 +46,8 @@ const QUEUE_STORAGE_KEY = '@treasure_chess:offline_queue';
 const MAX_QUEUE_SIZE = 50;
 const DEFAULT_MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 5000, 15000, 30000, 60000];
-const CONNECTIVITY_CHECK_URL = 'https://www.google.com/generate_204';
+// Apple's captive-portal endpoint: tiny response, no rate limits, no CORS issues on native
+const CONNECTIVITY_CHECK_URL = 'https://captive.apple.com/hotspot-detect.html';
 const CONNECTIVITY_CHECK_INTERVAL = 30000;
 
 // ============================================================================
@@ -86,7 +87,9 @@ class NetworkMonitorService {
       this.appStateSubscription = AppState.addEventListener('change', this.handleAppStateChange);
 
       this.checkIntervalId = setInterval(() => {
-        this.checkConnectivity();
+        // checkConnectivity never re-throws, but the unresolved promise would become
+        // an unhandled rejection on every tick without this catch.
+        this.checkConnectivity().catch(() => {});
       }, CONNECTIVITY_CHECK_INTERVAL);
 
       this.isInitialized = true;
@@ -118,7 +121,7 @@ class NetworkMonitorService {
   private handleOffline = (): void => this.updateState(false);
 
   private handleAppStateChange = (nextAppState: AppStateStatus): void => {
-    if (nextAppState === 'active') this.checkConnectivity();
+    if (nextAppState === 'active') this.checkConnectivity().catch(() => {});
   };
 
   async checkConnectivity(): Promise<boolean> {
@@ -130,7 +133,7 @@ class NetworkMonitorService {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      await fetch(CONNECTIVITY_CHECK_URL, { method: 'HEAD', mode: 'no-cors', cache: 'no-store', signal: controller.signal });
+      await fetch(CONNECTIVITY_CHECK_URL, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
       clearTimeout(timeoutId);
       this.updateState(true);
       return true;

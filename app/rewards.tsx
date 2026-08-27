@@ -61,15 +61,14 @@ import {
   getRarityLabel,
 } from "@/lib/rewards";
 import { useSoundAndHaptics } from "@/hooks/useSoundAndHaptics";
-import { useDragonAvatars } from "@/hooks/useDragonAvatars";
-import { getDragonAvatarSource } from "@/constants/dragonAssets";
 import { Lock } from "lucide-react-native";
+import { useDragonAvatars } from "@/hooks/useDragonAvatars";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type TabType = "rewards" | "dragons";
+type TabType = "rewards" | "avatars";
 type FilterType = "all" | "unlocked" | "locked";
 
 // ============================================================================
@@ -352,7 +351,7 @@ function DragonRewardCard({ reward, onClaim, isClaiming }: DragonRewardCardProps
         {hasThumbnail ? (
           <View style={[styles.dragonThumbnailContainer, !isUnlocked && styles.dragonThumbnailLocked]}>
             <Image
-              source={getDragonAvatarSource(reward.avatarUrl)}
+              source={{ uri: reward.avatarUrl }}
               style={[styles.dragonThumbnail, !isUnlocked && { opacity: 0.4 }]}
             />
             {!isUnlocked && (
@@ -463,17 +462,17 @@ function FilterTabs({
       {/* Tab Selector */}
       <View style={styles.tabSelector}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === "dragons" && styles.tabActive]}
-          onPress={() => onTabChange("dragons")}
+          style={[styles.tab, activeTab === "avatars" && styles.tabActive]}
+          onPress={() => onTabChange("avatars")}
         >
-          <Flame size={16} color={activeTab === "dragons" ? "#0F0F1E" : "#A0A0A0"} />
+          <Flame size={16} color={activeTab === "avatars" ? "#0F0F1E" : "#A0A0A0"} />
           <Text
             style={[
               styles.tabText,
-              activeTab === "dragons" && styles.tabTextActive,
+              activeTab === "avatars" && styles.tabTextActive,
             ]}
           >
-            Dragons
+            Avatars
           </Text>
           <View style={styles.countBadge}>
             <Text style={styles.countText}>
@@ -569,7 +568,7 @@ export default function RewardsScreen() {
     return dragonRewards.filter((r) => r.rewardType === "standard");
   }, [dragonRewards]);
 
-  const [activeTab, setActiveTab] = useState<TabType>("dragons");
+  const [activeTab, setActiveTab] = useState<TabType>("avatars");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [claimingRewardId, setClaimingRewardId] = useState<string | null>(null);
 
@@ -785,7 +784,7 @@ export default function RewardsScreen() {
                 />
               }
             >
-              {activeTab === "dragons" ? (
+              {activeTab === "avatars" ? (
                 <>
                   {/* Dragon Avatar Categories */}
                   {filteredDragonGroups.map((group) => (
@@ -806,17 +805,16 @@ export default function RewardsScreen() {
                     )
                   ))}
 
-                  {/* Empty state for dragons */}
                   {filteredDragonGroups.every((g) => g.rewards.length === 0) && (
                     <View style={styles.emptyContainer}>
                       <Flame size={48} color="#606060" />
-                      <Text style={styles.emptyTitle}>No dragon rewards found</Text>
+                      <Text style={styles.emptyTitle}>No avatar rewards found</Text>
                       <Text style={styles.emptyMessage}>
                         {activeFilter === "unlocked"
-                          ? "Play more games to unlock dragon avatars!"
+                          ? "Play more games to unlock profile avatars!"
                           : activeFilter === "locked"
-                          ? "You've unlocked all dragon avatars!"
-                          : "No dragon rewards available at this time."}
+                          ? "You've unlocked all profile avatars!"
+                          : "No avatar rewards available at this time."}
                       </Text>
                     </View>
                   )}
@@ -868,14 +866,14 @@ export default function RewardsScreen() {
 
               {/* Info Box */}
               <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>How Dragon Rewards Work</Text>
+                <Text style={styles.infoTitle}>How Rewards Work</Text>
                 <Text style={styles.infoText}>
-                  {"\u2022"} Play games to unlock baby dragon avatars{"\n"}
-                  {"\u2022"} Win games to unlock teenage dragon avatars{"\n"}
-                  {"\u2022"} Complete challenges for adult dragon avatars{"\n"}
-                  {"\u2022"} Play and win tournaments for fierce dragons{"\n"}
+                  {"\u2022"} Play games to unlock profile avatars{"\n"}
+                  {"\u2022"} Win games to reach higher milestone tiers{"\n"}
+                  {"\u2022"} Complete challenges for exclusive avatars{"\n"}
+                  {"\u2022"} Play tournaments for elite-tier rewards{"\n"}
                   {"\u2022"} Claim TCT bonuses when you hit milestones{"\n"}
-                  {"\u2022"} Use unlocked dragons as your profile picture
+                  {"\u2022"} Use unlocked avatars as your profile picture
                 </Text>
               </View>
             </ScrollView>
@@ -1008,7 +1006,7 @@ const styles = StyleSheet.create({
   },
   filterPillActive: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   filterPillText: {
     fontSize: 13,
@@ -1016,7 +1014,7 @@ const styles = StyleSheet.create({
     color: "#A0A0A0",
   },
   filterPillTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 
   // Scroll View
@@ -1136,7 +1134,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     borderRadius: 3,
   },
   progressText: {
@@ -1455,7 +1453,7 @@ const styles = StyleSheet.create({
   },
   dragonProgressFill: {
     height: "100%",
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     borderRadius: 2,
   },
   dragonProgressText: {

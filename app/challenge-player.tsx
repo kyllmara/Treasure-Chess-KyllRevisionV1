@@ -337,7 +337,7 @@ export default function ChallengePlayerScreen() {
           <View style={styles.balanceInfo}>
             <Text style={styles.balanceLabel}>Available Balance:</Text>
             {isBalanceLoading ? (
-              <ActivityIndicator size="small" color="#4ECDC4" />
+              <ActivityIndicator size="small" color="#4CAF82" />
             ) : (
               <Text style={styles.balanceValue}>
                 {availableTct.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} TCT (${(availableTct * TCT_TO_USD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
@@ -920,12 +920,12 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "600" as const,
   },
   balanceValue: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "700" as const,
   },
   wagerContainer: {

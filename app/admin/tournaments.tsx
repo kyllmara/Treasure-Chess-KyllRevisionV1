@@ -44,7 +44,7 @@ export default function AdminTournamentsScreen() {
 
 const STATUS_COLORS: Record<TournamentStatus, string> = {
   draft: "#888",
-  registration: "#4ECDC4",
+  registration: "#4CAF82",
   starting: "#FFD700",
   active: "#34C759",
   completed: "#A0A0A0",
@@ -288,8 +288,8 @@ function AdminTournamentsContent() {
               style={[styles.actionButton, styles.viewButton]}
               onPress={() => handleViewTournament(item)}
             >
-              <Ionicons name="eye-outline" size={14} color="#4ECDC4" />
-              <Text style={[styles.actionButtonText, { color: "#4ECDC4" }]}>
+              <Ionicons name="eye-outline" size={14} color="#4CAF82" />
+              <Text style={[styles.actionButtonText, { color: "#4CAF82" }]}>
                 View
               </Text>
             </TouchableOpacity>
@@ -801,7 +801,7 @@ function TournamentFormModal({
                 setShowTimePicker(false);
               }}
             >
-              <Ionicons name="calendar-outline" size={20} color="#4ECDC4" />
+              <Ionicons name="calendar-outline" size={20} color="#4CAF82" />
               <Text style={styles.datePickerButtonText}>
                 {formatDateDisplay(startDate)}
               </Text>
@@ -869,7 +869,7 @@ function TournamentFormModal({
                 setShowDatePicker(false);
               }}
             >
-              <Ionicons name="time-outline" size={20} color="#4ECDC4" />
+              <Ionicons name="time-outline" size={20} color="#4CAF82" />
               <Text style={styles.datePickerButtonText}>
                 {formatTimeDisplay(startDate)}
               </Text>
@@ -973,7 +973,7 @@ function TournamentFormModal({
               <Ionicons
                 name={isRated ? "checkbox" : "square-outline"}
                 size={24}
-                color={isRated ? "#4ECDC4" : "#666"}
+                color={isRated ? "#4CAF82" : "#666"}
               />
             </TouchableOpacity>
 
@@ -1093,7 +1093,7 @@ const styles = StyleSheet.create({
   },
   filterTabActive: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   filterTabText: {
     fontSize: 13,
@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   filterTabTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   createButton: {
     flexDirection: "row",
@@ -1306,7 +1306,7 @@ const styles = StyleSheet.create({
   },
   optionButtonActive: {
     backgroundColor: "rgba(78, 205, 196, 0.2)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   optionButtonText: {
     fontSize: 15,
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
     color: "#A0A0A0",
   },
   optionButtonTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   toggleRow: {
     flexDirection: "row",
@@ -1404,7 +1404,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   calendarDaySelected: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
   },
   calendarDayToday: {
     borderWidth: 1,
@@ -1459,7 +1459,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   timeItemTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "700",
   },
   frequencyGrid: {
@@ -1478,7 +1478,7 @@ const styles = StyleSheet.create({
   },
   frequencyButtonActive: {
     backgroundColor: "rgba(78, 205, 196, 0.2)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   frequencyButtonText: {
     fontSize: 13,
@@ -1486,7 +1486,7 @@ const styles = StyleSheet.create({
     color: "#A0A0A0",
   },
   frequencyButtonTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   cancelModalButton: {
     flex: 1,

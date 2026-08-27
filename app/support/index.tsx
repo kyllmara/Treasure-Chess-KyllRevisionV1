@@ -28,7 +28,7 @@ interface Ticket {
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   open: { bg: "rgba(255, 204, 0, 0.15)", text: "#FFCC00", label: "Open" },
-  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4ECDC4", label: "In Progress" },
+  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4CAF82", label: "In Progress" },
   resolved: { bg: "rgba(52, 199, 89, 0.15)", text: "#34C759", label: "Resolved" },
 };
 

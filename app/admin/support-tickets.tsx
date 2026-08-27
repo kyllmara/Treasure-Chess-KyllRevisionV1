@@ -43,7 +43,7 @@ type FilterTab = "all" | "open" | "in_progress" | "resolved";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   open: { bg: "rgba(255, 204, 0, 0.15)", text: "#FFCC00", label: "Open" },
-  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4ECDC4", label: "In Progress" },
+  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4CAF82", label: "In Progress" },
   resolved: { bg: "rgba(52, 199, 89, 0.15)", text: "#34C759", label: "Resolved" },
 };
 
@@ -339,10 +339,10 @@ function AdminSupportTicketsContent() {
                   disabled={isUpdatingStatus === item.id}
                 >
                   {isUpdatingStatus === item.id ? (
-                    <ActivityIndicator size="small" color="#4ECDC4" />
+                    <ActivityIndicator size="small" color="#4CAF82" />
                   ) : (
                     <>
-                      <Ionicons name="time-outline" size={14} color="#4ECDC4" />
+                      <Ionicons name="time-outline" size={14} color="#4CAF82" />
                       <Text style={styles.inProgressButtonText}>Mark In Progress</Text>
                     </>
                   )}
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   ticketUsername: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   inProgressButtonText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   resolvedButton: {
     backgroundColor: "rgba(52, 199, 89, 0.1)",

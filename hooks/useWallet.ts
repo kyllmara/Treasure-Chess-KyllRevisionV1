@@ -13,6 +13,7 @@
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import type { Balance } from "@/types/supabase";
 
 // ============================================================================
@@ -152,7 +153,7 @@ export function useWallet(): UseWalletReturn {
       }
 
       // Fetch locked balance from Supabase (for active games/challenges)
-      if (profile?.id && isSupabaseConfigured) {
+      if (profile?.id && isSupabaseConfigured && !DEV_BYPASS_AUTH) {
         const { data, error: fetchError } = await supabase
           .from("balances")
           .select("*")

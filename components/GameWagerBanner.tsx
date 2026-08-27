@@ -79,7 +79,7 @@ export function GameWagerBanner({
         </View>
         {showWinnings && (
           <View style={styles.compactRow}>
-            <Trophy size={14} color="#4ECDC4" />
+            <Trophy size={14} color="#4CAF82" />
             <Text style={styles.compactLabel}>Win:</Text>
             <Text style={styles.compactValueWin}>{formatTct(potentialWinnings)} TCT</Text>
           </View>
@@ -113,7 +113,7 @@ export function GameWagerBanner({
         {showWinnings && (
           <View style={styles.winningsSection}>
             <View style={styles.iconLabel}>
-              <Trophy size={18} color="#4ECDC4" />
+              <Trophy size={18} color="#4CAF82" />
               <Text style={styles.label}>If You Win</Text>
             </View>
             <Text style={styles.winningsValue}>{formatTct(potentialWinnings)} TCT</Text>
@@ -186,12 +186,12 @@ const styles = StyleSheet.create({
   winningsValue: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   winningsUsd: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     opacity: 0.7,
     marginTop: 2,
   },
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   compactValueWin: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 });
 

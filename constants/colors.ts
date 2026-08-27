@@ -1,12 +1,5 @@
-// template
-const tintColorLight = "#2f95dc";
-
-export default {
-  light: {
-    text: "#000",
-    background: "#fff",
-    tint: tintColorLight,
-    tabIconDefault: "#ccc",
-    tabIconSelected: tintColorLight,
-  },
-};
+/**
+ * Re-exports Colors from the central theme file.
+ * Import from "@/constants/theme" for access to all tokens.
+ */
+export { Colors as default, Colors } from "./theme";

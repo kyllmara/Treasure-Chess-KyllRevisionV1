@@ -271,13 +271,13 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
-              <Target size={16} color="#4ECDC4" />
+              <Target size={16} color="#4CAF82" />
               <Text style={styles.quickStatValue}>{quickStats.winRate}%</Text>
               <Text style={styles.quickStatLabel}>Win Rate</Text>
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStat}>
-              <Flame size={16} color="#FF6B6B" />
+              <Flame size={16} color="#E05C5C" />
               <Text style={styles.quickStatValue}>{quickStats.streak}</Text>
               <Text style={styles.quickStatLabel}>Streak</Text>
             </View>

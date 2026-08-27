@@ -59,6 +59,14 @@
         "expo-font",
         {
           "fonts": [
+            "./node_modules/@expo-google-fonts/space-grotesk/400Regular/SpaceGrotesk_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/space-grotesk/600SemiBold/SpaceGrotesk_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/space-grotesk/700Bold/SpaceGrotesk_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf",
             "./assets/fonts/Cabin-Regular.ttf",
             "./assets/fonts/Cabin-Medium.ttf",
             "./assets/fonts/Cabin-SemiBold.ttf",
@@ -76,7 +84,12 @@
             "./assets/fonts/PlusJakartaSans-Medium.ttf",
             "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
             "./assets/fonts/PlusJakartaSans-Bold.ttf",
-            "./assets/fonts/PlusJakartaSans-ExtraBold.ttf"
+            "./assets/fonts/PlusJakartaSans-ExtraBold.ttf",
+            "./node_modules/@expo-google-fonts/archivo-black/400Regular/ArchivoBlack_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/quicksand/400Regular/Quicksand_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/quicksand/500Medium/Quicksand_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/quicksand/600SemiBold/Quicksand_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/google-sans-flex/100Thin/GoogleSansFlex_100Thin.ttf"
           ]
         }
       ],

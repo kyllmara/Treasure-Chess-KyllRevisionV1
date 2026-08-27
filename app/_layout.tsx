@@ -2,6 +2,7 @@ import "react-native-get-random-values";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -14,6 +15,25 @@ import { ChallengeNotificationListener } from "@/components/ChallengeNotificatio
 import { TournamentMatchListener } from "@/components/TournamentMatchListener";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
+import { ArchivoBlack_400Regular } from "@expo-google-fonts/archivo-black";
+import {
+  Quicksand_400Regular,
+  Quicksand_500Medium,
+  Quicksand_600SemiBold,
+} from "@expo-google-fonts/quicksand";
+import { GoogleSansFlex_100Thin } from "@expo-google-fonts/google-sans-flex";
+import {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,29 +46,33 @@ const queryClient = new QueryClient({
   },
 });
 
-// Hides the splash screen once auth has finished its initial check.
-// Sits inside AuthProvider so it can read auth state.
-function SplashHider() {
+function SplashHider({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { isLoading } = useAuth();
-  useEffect(() => {
-    if (!isLoading) {
-      SplashScreen.hideAsync();
+  const hidden = React.useRef(false);
+
+  const hide = React.useCallback(() => {
+    if (!hidden.current) {
+      hidden.current = true;
+      SplashScreen.hideAsync().catch(() => {});
     }
-  }, [isLoading]);
-  useEffect(() => {
-    // Safety net: never hang on splash longer than 5 seconds
-    const t = setTimeout(() => SplashScreen.hideAsync(), 5000);
-    return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (!isLoading && fontsLoaded) hide();
+  }, [isLoading, fontsLoaded, hide]);
+
+  useEffect(() => {
+    const t = setTimeout(hide, 5000);
+    return () => clearTimeout(t);
+  }, [hide]);
+
   return null;
 }
 
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ title: "Settings", headerShown: false }} />
-      <Stack.Screen name="wallet" options={{ title: "Wallet", headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="game" options={{ headerShown: false }} />
       <Stack.Screen name="practice" options={{ headerShown: false }} />
       <Stack.Screen name="challenge-board" options={{ title: "Challenge Board", headerShown: false }} />
@@ -81,12 +105,28 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    ArchivoBlack_400Regular,
+    Quicksand_400Regular,
+    Quicksand_500Medium,
+    Quicksand_600SemiBold,
+    GoogleSansFlex_100Thin,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ErrorBoundary scope="root">
           <AuthProvider>
-            <SplashHider />
+            <SplashHider fontsLoaded={fontsLoaded ?? false} />
             <WalletInitializer>
               <AppProvider>
                 <SyncStatusProvider>

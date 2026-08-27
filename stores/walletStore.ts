@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import { AppState, type AppStateStatus } from "react-native";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -65,7 +66,7 @@ async function fetchOnChainUsdcBalance(walletAddress: string): Promise<number> {
 
     return balanceUsdc;
   } catch (error) {
-    console.error("[WalletStore] Error fetching on-chain USDC balance:", error);
+    console.error("[WalletStore] Error fetching on-chain USDC balance from:", RPC_URL, error);
     return 0;
   }
 }
@@ -457,7 +458,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       fetchTransactions: async (userId: string, filter: TransactionFilter = "all", page: number = 0) => {
-        if (!isSupabaseConfigured) {
+        if (DEV_BYPASS_AUTH || !isSupabaseConfigured) {
           return;
         }
 
@@ -765,6 +766,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       refreshBalance: async (userId: string) => {
+        if (DEV_BYPASS_AUTH) return;
         const { walletAddress } = get();
 
         try {
@@ -975,6 +977,13 @@ export const useWalletStore = create<WalletState>()(
       // ========================================================================
 
       initializeWallet: async (userId: string) => {
+        // In bypass mode the stub UUID has no rows in any Supabase table.
+        // Skip all network calls; the store stays at its zero-balance initial state.
+        if (DEV_BYPASS_AUTH) {
+          console.log("[WalletStore] DEV bypass — skipping Supabase wallet init");
+          return;
+        }
+
         console.log("[WalletStore] Initializing wallet for user:", userId);
 
         const {

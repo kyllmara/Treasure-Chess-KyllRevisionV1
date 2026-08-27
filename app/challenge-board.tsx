@@ -599,7 +599,7 @@ function ChallengeBoardContent() {
             ]}>
               <Text style={[
                 styles.directChallengeBannerText,
-                { color: opponentJoined ? "#4ECDC4" : "#60A5FA" }
+                { color: opponentJoined ? "#4CAF82" : "#60A5FA" }
               ]}>
                 {opponentJoined ? "Opponent in Lobby! Tap Rejoin" : "Your Challenge"}
               </Text>
@@ -1398,7 +1398,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,

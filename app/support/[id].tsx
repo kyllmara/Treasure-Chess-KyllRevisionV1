@@ -33,7 +33,7 @@ interface TicketInfo {
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   open: { bg: "rgba(255, 204, 0, 0.15)", text: "#FFCC00", label: "Open" },
-  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4ECDC4", label: "In Progress" },
+  in_progress: { bg: "rgba(78, 205, 196, 0.15)", text: "#4CAF82", label: "In Progress" },
   resolved: { bg: "rgba(52, 199, 89, 0.15)", text: "#34C759", label: "Resolved" },
 };
 
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   adminLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     marginBottom: 4,
   },
   messageText: {

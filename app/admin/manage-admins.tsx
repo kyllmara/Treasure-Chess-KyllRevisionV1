@@ -225,7 +225,7 @@ function ManageAdminsContent() {
             <Ionicons
               name={item.isSuperAdmin ? "star" : "shield"}
               size={20}
-              color={item.isSuperAdmin ? "#FFD700" : "#4ECDC4"}
+              color={item.isSuperAdmin ? "#FFD700" : "#4CAF82"}
             />
           </View>
           <View style={styles.userInfo}>
@@ -299,7 +299,7 @@ function ManageAdminsContent() {
             <Ionicons
               name={item.isAdmin ? "shield" : "person"}
               size={20}
-              color={item.isAdmin ? "#4ECDC4" : "#A0A0A0"}
+              color={item.isAdmin ? "#4CAF82" : "#A0A0A0"}
             />
           </View>
           <View style={styles.userInfo}>
@@ -363,10 +363,10 @@ function ManageAdminsContent() {
                 disabled={actionLoading === item.id}
               >
                 {actionLoading === item.id ? (
-                  <ActivityIndicator size="small" color="#4ECDC4" />
+                  <ActivityIndicator size="small" color="#4CAF82" />
                 ) : (
                   <>
-                    <Ionicons name="shield-checkmark" size={16} color="#4ECDC4" />
+                    <Ionicons name="shield-checkmark" size={16} color="#4CAF82" />
                     <Text style={styles.grantButtonText}>Admin</Text>
                   </>
                 )}
@@ -435,7 +435,7 @@ function ManageAdminsContent() {
               <Ionicons
                 name="shield"
                 size={16}
-                color={activeTab === "admins" ? "#4ECDC4" : "#A0A0A0"}
+                color={activeTab === "admins" ? "#4CAF82" : "#A0A0A0"}
               />
               <Text
                 style={[
@@ -454,7 +454,7 @@ function ManageAdminsContent() {
                 <Ionicons
                   name="search"
                   size={16}
-                  color={activeTab === "search" ? "#4ECDC4" : "#A0A0A0"}
+                  color={activeTab === "search" ? "#4CAF82" : "#A0A0A0"}
                 />
                 <Text
                   style={[
@@ -645,10 +645,10 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   tabText: { fontSize: 13, color: "#A0A0A0", fontWeight: "500" },
-  tabTextActive: { color: "#4ECDC4" },
+  tabTextActive: { color: "#4CAF82" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   listContent: { paddingHorizontal: 16, paddingBottom: 32, gap: 10 },
   emptyContainer: { alignItems: "center", paddingTop: 64, gap: 12 },
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
-  adminRoleBadgeText: { color: "#4ECDC4" },
+  adminRoleBadgeText: { color: "#4CAF82" },
   superAdminRoleBadgeText: { color: "#FFD700" },
 
   // Action buttons
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(78, 205, 196, 0.3)",
   },
-  grantButtonText: { fontSize: 13, fontWeight: "600", color: "#4ECDC4" },
+  grantButtonText: { fontSize: 13, fontWeight: "600", color: "#4CAF82" },
   revokeButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 12 : 10,
   },
   searchButton: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     borderRadius: 12,
     paddingHorizontal: 16,
     justifyContent: "center",

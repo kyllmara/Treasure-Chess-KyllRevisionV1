@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   livestreamBadgeText: {
     fontSize: 13,
     fontWeight: "600" as const,
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   wagerContainer: {
     backgroundColor: "rgba(255, 255, 255, 0.05)",

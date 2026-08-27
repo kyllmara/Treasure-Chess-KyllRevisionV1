@@ -104,7 +104,7 @@ function AdminDashboardContent() {
               <Ionicons
                 name={isSuperAdmin ? "star" : "shield"}
                 size={14}
-                color={isSuperAdmin ? "#FFD700" : "#4ECDC4"}
+                color={isSuperAdmin ? "#FFD700" : "#4CAF82"}
               />
               <Text style={[styles.badgeText, isSuperAdmin && styles.superAdminBadgeText]}>
                 {isSuperAdmin ? "Super Admin" : "Admin"}
@@ -140,7 +140,7 @@ function AdminDashboardContent() {
                     icon="people"
                     label="Total Users"
                     value={dashboardStats.users.total}
-                    color="#4ECDC4"
+                    color="#4CAF82"
                   />
                   <StatCard
                     icon="game-controller"
@@ -349,7 +349,7 @@ function AdminDashboardContent() {
                 <View style={styles.adminTeamCard}>
                   <View style={styles.adminTeamRow}>
                     <View style={styles.adminTeamIcon}>
-                      <Ionicons name="shield" size={20} color="#4ECDC4" />
+                      <Ionicons name="shield" size={20} color="#4CAF82" />
                     </View>
                     <Text style={styles.adminTeamLabel}>Total Admins</Text>
                     <Text style={styles.adminTeamValue}>
@@ -475,7 +475,7 @@ function MenuItem({ icon, label, description, onPress, superAdminOnly = false, b
         <Ionicons
           name={icon as any}
           size={24}
-          color={superAdminOnly ? "#FFD700" : "#4ECDC4"}
+          color={superAdminOnly ? "#FFD700" : "#4CAF82"}
         />
         {badge > 0 && (
           <View style={styles.menuBadge}>
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   superAdminBadgeText: {
     color: "#FFD700",
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   highlightValue: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   moderationContainer: {
     flexDirection: "row",

@@ -17,6 +17,11 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@expo-google-fonts/archivo-black": "^0.4.1",
+    "@expo-google-fonts/google-sans-flex": "^0.4.5",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/quicksand": "^0.4.1",
+    "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@hono/trpc-server": "^0.4.1",
     "@nkzw/create-context-hook": "^1.1.0",

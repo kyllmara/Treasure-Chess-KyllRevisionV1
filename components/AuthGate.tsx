@@ -5,127 +5,90 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Lock,
+  ChevronLeft,
+  Gamepad2,
+  Trophy,
+  Wallet,
+  Users,
+} from "lucide-react-native";
 import { useAuth } from "@/hooks/useAuth";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
+import { Colors, FontFamily, Spacing, BorderRadius } from "@/constants/theme";
 
 interface AuthGateProps {
   children: React.ReactNode;
-  /** Screen title to show in the auth prompt */
   featureName?: string;
-  /** Optional custom message */
   message?: string;
 }
 
-/**
- * AuthGate component that wraps screens requiring authentication.
- * Shows a login prompt if user is not authenticated, otherwise renders children.
- *
- * Usage:
- * ```tsx
- * export default function MatchmakingScreen() {
- *   return (
- *     <AuthGate featureName="Matchmaking">
- *       <YourScreenContent />
- *     </AuthGate>
- *   );
- * }
- * ```
- */
 export function AuthGate({ children, featureName = "this feature", message }: AuthGateProps) {
   const router = useRouter();
   const { isAuthenticated, isGuest, isLoading } = useAuth();
 
-  // Show loading state while checking auth
+  if (DEV_BYPASS_AUTH) {
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <LinearGradient colors={["#0F0F1E", "#1A1A2E"]} style={styles.gradient}>
-          <ActivityIndicator size="large" color="#FFD700" />
-        </LinearGradient>
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
 
-  // If authenticated, render the protected content
   if (isAuthenticated && !isGuest) {
     return <>{children}</>;
   }
 
-  // Show login prompt for unauthenticated users
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#0F0F1E", "#1A1A2E"]} style={styles.gradient}>
-        <SafeAreaView style={styles.safeArea}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+      <SafeAreaView style={styles.safeArea}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ChevronLeft size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+
+        <View style={styles.content}>
+          <View style={styles.iconContainer}>
+            <Lock size={48} color={Colors.primary} />
+          </View>
+
+          <Text style={styles.title}>Sign In Required</Text>
+
+          <Text style={styles.description}>
+            {message ||
+              `You need to sign in to access ${featureName}. Create an account to play against other players, join tournaments, and compete for real rewards.`}
+          </Text>
+
+          <View style={styles.featuresList}>
+            <FeatureItem Icon={Gamepad2} text="Play against real opponents" />
+            <FeatureItem Icon={Trophy} text="Join tournaments & win prizes" />
+            <FeatureItem Icon={Wallet} text="Manage your wallet & earnings" />
+            <FeatureItem Icon={Users} text="Challenge friends" />
+          </View>
+
+          <TouchableOpacity style={styles.signInButton} onPress={() => router.push("/login")}>
+            <Text style={styles.signInButtonText}>Sign In</Text>
           </TouchableOpacity>
 
-          <View style={styles.content}>
-            {/* Lock Icon */}
-            <View style={styles.iconContainer}>
-              <Ionicons name="lock-closed" size={64} color="#FFD700" />
-            </View>
-
-            {/* Title */}
-            <Text style={styles.title}>Sign In Required</Text>
-
-            {/* Description */}
-            <Text style={styles.description}>
-              {message || `You need to sign in to access ${featureName}. Create an account to play against other players, join tournaments, and compete for real rewards.`}
-            </Text>
-
-            {/* Features List */}
-            <View style={styles.featuresList}>
-              <FeatureItem icon="game-controller" text="Play against real opponents" />
-              <FeatureItem icon="trophy" text="Join tournaments & win prizes" />
-              <FeatureItem icon="wallet" text="Manage your wallet & earnings" />
-              <FeatureItem icon="people" text="Challenge friends" />
-            </View>
-
-            {/* Sign In Button */}
-            <TouchableOpacity
-              style={styles.signInButton}
-              onPress={() => router.push("/login")}
-            >
-              <LinearGradient
-                colors={["#FFD700", "#FFA500"]}
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Text style={styles.signInButtonText}>Sign In</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Practice Mode Link */}
-            <TouchableOpacity
-              style={styles.practiceButton}
-              onPress={() => router.push("/practice")}
-            >
-              <Text style={styles.practiceButtonText}>
-                Or continue practicing against AI
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+          <TouchableOpacity style={styles.practiceButton} onPress={() => router.push("/practice")}>
+            <Text style={styles.practiceButtonText}>Or continue practicing against AI</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-function FeatureItem({ icon, text }: { icon: string; text: string }) {
+function FeatureItem({ Icon, text }: { Icon: React.ComponentType<any>; text: string }) {
   return (
     <View style={styles.featureItem}>
-      <Ionicons name={icon as any} size={20} color="#4ECDC4" />
+      <Icon size={20} color={Colors.textSecondary} />
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
@@ -134,27 +97,27 @@ function FeatureItem({ icon, text }: { icon: string; text: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F0F1E",
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
+    backgroundColor: Colors.background,
     justifyContent: "center",
     alignItems: "center",
-  },
-  gradient: {
-    flex: 1,
   },
   safeArea: {
     flex: 1,
   },
   backButton: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 60 : 20,
-    left: 20,
+    top: Spacing.lg,
+    left: Spacing.lg,
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 10,
@@ -163,71 +126,76 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
+    paddingHorizontal: Spacing.xxl,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    width: 96,
+    height: 96,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   title: {
+    fontFamily: FontFamily.spaceGroteskBold,
     fontSize: 28,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 16,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
     textAlign: "center",
   },
   description: {
-    fontSize: 16,
-    color: "#A0A0A0",
+    fontFamily: FontFamily.inter,
+    fontSize: 15,
+    color: Colors.textSecondary,
     textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 32,
+    lineHeight: 22,
+    marginBottom: Spacing.xxl,
   },
   featuresList: {
     width: "100%",
-    marginBottom: 32,
-    gap: 12,
+    marginBottom: Spacing.xxl,
+    gap: Spacing.md,
   },
   featureItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   featureText: {
-    fontSize: 15,
-    color: "#FFFFFF",
+    fontFamily: FontFamily.inter,
+    fontSize: 14,
+    color: Colors.textPrimary,
     flex: 1,
   },
   signInButton: {
     width: "100%",
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 16,
-  },
-  buttonGradient: {
-    paddingVertical: 18,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.xl,
     alignItems: "center",
+    marginBottom: Spacing.lg,
   },
   signInButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F0F1E",
+    fontFamily: FontFamily.spaceGroteskBold,
+    fontSize: 16,
+    color: Colors.background,
   },
   practiceButton: {
-    paddingVertical: 12,
+    paddingVertical: Spacing.md,
   },
   practiceButtonText: {
+    fontFamily: FontFamily.inter,
     fontSize: 14,
-    color: "#4ECDC4",
+    color: Colors.textSecondary,
     textDecorationLine: "underline",
   },
 });

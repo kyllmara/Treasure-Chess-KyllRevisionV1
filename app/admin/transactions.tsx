@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   bankDetailAmount: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     marginTop: 6,
   },
   emptyContainer: {

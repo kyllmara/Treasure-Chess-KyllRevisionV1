@@ -1267,8 +1267,18 @@ class RewardsService {
       }
 
       return (data || []).map(transformDragonRewardProgress);
-    } catch (error) {
-      console.error("[RewardsService] Failed to fetch dragon rewards:", error);
+    } catch (error: any) {
+      // Suppress expected noise when running with stub user (no real Supabase session).
+      // PGRST116 = no rows, P0001/PGRST301/42501 = RLS/auth block — all expected for stub.
+      const isExpectedBypassNoise =
+        process.env.EXPO_PUBLIC_SKIP_AUTH === "true" &&
+        (error?.code === "PGRST116" ||
+          error?.code === "P0001" ||
+          error?.code === "PGRST301" ||
+          error?.code === "42501");
+      if (!isExpectedBypassNoise) {
+        console.error("[RewardsService] Failed to fetch dragon rewards:", error);
+      }
       return [];
     }
   }

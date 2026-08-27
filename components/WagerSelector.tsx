@@ -213,7 +213,7 @@ export function WagerSelector({
           </View>
           {availableBalance < 25 && (
             <View style={styles.lowBalanceWarning}>
-              <AlertCircle size={14} color="#FF6B6B" />
+              <AlertCircle size={14} color="#E05C5C" />
               <Text style={styles.lowBalanceText}>
                 Deposit funds to play wager games
               </Text>
@@ -231,7 +231,7 @@ export function WagerSelector({
       {showWinnings && selectedWager > 0 && (
         <View style={styles.winningsPreview}>
           <View style={styles.winningsHeader}>
-            <Trophy size={16} color="#4ECDC4" />
+            <Trophy size={16} color="#4CAF82" />
             <Text style={styles.winningsLabel}>If You Win</Text>
           </View>
           <View style={styles.winningsBreakdown}>
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
   lowBalanceText: {
     fontSize: 12,
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
 
   // Wager Grid
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   winningsLabel: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   winningsBreakdown: {
     gap: 6,
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   winningsRowValueNegative: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   winningsDivider: {
     height: 1,
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   winningsTotalLabel: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   winningsTotalValues: {
     flexDirection: "row",
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   winningsTotalTct: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   winningsTotalUsd: {
     fontSize: 12,

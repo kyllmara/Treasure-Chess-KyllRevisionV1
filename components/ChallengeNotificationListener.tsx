@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useChallengeStore } from "@/stores/challengeStore";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import React from "react";
 
@@ -289,8 +290,8 @@ export function ChallengeNotificationListener() {
   );
 
   useEffect(() => {
-    if (!profile?.id || !isAuthenticated || isGuest) {
-      // Cleanup if user logs out or is guest
+    if (DEV_BYPASS_AUTH || !profile?.id || !isAuthenticated || isGuest) {
+      // Cleanup if user logs out, is guest, or is in DEV bypass (stub user has no DB rows)
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

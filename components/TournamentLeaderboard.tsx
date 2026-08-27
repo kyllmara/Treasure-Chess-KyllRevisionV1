@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   playerNameHighlight: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   playerMeta: {
     flexDirection: "row",
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#333",
   },
   showMoreText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 13,
     fontWeight: "600",
   },

@@ -13,13 +13,15 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Chess, Square, Move } from "chess.js";
 import { useRouter } from "expo-router";
-import { RotateCcw, X, Trophy, ChevronLeft, ChevronRight, MessageCircle, Share2 } from "lucide-react-native";
+import { RotateCcw, X, Trophy, ChevronLeft, ChevronRight, MessageCircle, Share2, Bot } from "lucide-react-native";
 import { VictoryCelebration, AnimatedDragons } from "@/components/VictoryCelebration";
 import { useApp } from "@/contexts/AppContext";
 import { ChessPieceComponent } from "@/components/ChessPieces";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { getDragonAvatarSource } from "@/constants/dragonAssets";
 import type { BoardTheme } from "@/types";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useMoveAnimations } from "@/hooks/useMoveAnimations";
+import { BoardAnimationOverlay } from "@/components/BoardAnimationOverlay";
 
 const { width } = Dimensions.get("window");
 const BOARD_SIZE = Math.min(width - 40, 400);
@@ -40,53 +42,13 @@ const BOARD_THEMES: Record<BoardTheme, { light: string; dark: string }> = {
   retro: { light: "#E8D7B8", dark: "#A67C52" },
 };
 
-const BABY_DRAGON_AVATARS = [
-  "https://r2-pub.rork.com/generated-images/c6e13d72-4e3e-4370-ac6c-d36eb6e5ee42.png",
-  "https://r2-pub.rork.com/generated-images/50e45f39-9e13-44e4-919a-ab70e0c5e0be.png",
-  "https://r2-pub.rork.com/generated-images/e55af6fb-4f83-4609-92a2-fa5a2c0db1e3.png",
-  "https://r2-pub.rork.com/generated-images/ec61f93d-e18a-4495-826a-c39f9bb8e7dd.png",
-  "https://r2-pub.rork.com/generated-images/72f6c5a0-ca33-45b0-983e-1eb9d163e8bb.png",
-  "https://r2-pub.rork.com/generated-images/a3fb5afd-fa35-4f50-bf05-ab2b20e24be3.png",
-  "https://r2-pub.rork.com/generated-images/0e4b27b6-03c8-4ed4-9d3b-5a43d35edc67.png",
-  "https://r2-pub.rork.com/generated-images/1ecfe1df-5b1c-4dfd-a43e-3e1a84b85c41.png",
-  "https://r2-pub.rork.com/generated-images/5207e46f-41e3-4e48-b46c-df1ff0aa8bcd.png",
-];
-
-const TEENAGE_DRAGON_AVATARS = [
-  "https://r2-pub.rork.com/generated-images/0d77351e-5ae4-4fd4-85c9-d40337247e61.png",
-  "https://r2-pub.rork.com/generated-images/2c7178ac-3096-416e-be22-cf009c5c489d.png",
-  "https://r2-pub.rork.com/generated-images/69b5e875-14b0-4b40-bf22-96c695d6b2be.png",
-  "https://r2-pub.rork.com/generated-images/47fcabb7-7000-4456-83c2-e6859069b70d.png",
-  "https://r2-pub.rork.com/generated-images/f42d0447-3172-4b8a-80a2-d2b2050ff66a.png",
-  "https://r2-pub.rork.com/generated-images/4d9bc44e-e1de-464f-8f12-4c7fe48c84d3.png",
-  "https://r2-pub.rork.com/generated-images/af03441f-c644-46ce-8ab1-44a2a267ba28.png",
-  "https://r2-pub.rork.com/generated-images/7b7d41b2-8aaf-4077-b084-b463d9da58c5.png",
-  "https://r2-pub.rork.com/generated-images/4891fc39-750e-4ebd-b2fa-73600f8549a0.png",
-];
-
-const NON_FIERCE_ADULT_AVATARS = [
-  "https://r2-pub.rork.com/generated-images/d5421ced-b222-469e-86e9-bf57414cd738.png",
-  "https://r2-pub.rork.com/generated-images/46bcf6c6-8dca-4af3-aa89-ce289ea66004.png",
-  "https://r2-pub.rork.com/generated-images/2f70b854-6a4a-4f81-a1c8-857d5031cd61.png",
-  "https://r2-pub.rork.com/generated-images/adf6e262-3a9b-4cdf-9e15-d41f4d687826.png",
-  "https://r2-pub.rork.com/generated-images/b3053a7e-b6e6-45fd-aded-154af7b1bd06.png",
-  "https://r2-pub.rork.com/generated-images/6086acd7-2054-4db0-a38b-ddb62d8173a7.png",
-  "https://r2-pub.rork.com/generated-images/d4928689-63db-46a9-a7c4-806463141952.png",
-  "https://r2-pub.rork.com/generated-images/637923f8-0483-4397-8775-a745526d7f32.png",
-  "https://r2-pub.rork.com/generated-images/6c6df691-2973-4fa3-9236-d8ce2ce0a9b5.png",
-];
-
-const FIERCE_ADULT_AVATARS = [
-  "https://r2-pub.rork.com/generated-images/4090decb-e03e-4e1e-836d-6a97455932cf.png",
-  "https://r2-pub.rork.com/generated-images/4924e9b1-d303-43b7-8b57-3476ed6f13d1.png",
-  "https://r2-pub.rork.com/generated-images/a3c6b842-cef7-4a61-a6c9-f84aeac959f8.png",
-  "https://r2-pub.rork.com/generated-images/3f3a6e15-3411-4972-8348-766fa05572db.png",
-  "https://r2-pub.rork.com/generated-images/6233121d-9638-41cd-9cc0-831af74194eb.png",
-  "https://r2-pub.rork.com/generated-images/3f21ea07-c0f6-4802-9c4e-d7df12cc6b31.png",
-  "https://r2-pub.rork.com/generated-images/c7776511-a385-4bf9-a051-7cce392c1409.png",
-  "https://r2-pub.rork.com/generated-images/d0da5601-05dc-405b-b099-4e6b1ff8dd3e.png",
-  "https://r2-pub.rork.com/generated-images/30e626dc-e0de-411a-859d-edd24d7608fc.png",
-];
+// Bot difficulty levels — using abstract color-coded identifiers
+const BOT_COLORS: Record<string, string> = {
+  beginner: "#4CAF82",
+  rookie:   "#4A90E2",
+  adept:    "#F5C400",
+  expert:   "#E05C5C",
+};
 
 type DifficultyLevel = "beginner" | "rookie" | "adept" | "expert";
 type TimeLimit = 180 | 300 | 600 | 900 | null;
@@ -116,7 +78,21 @@ export default function PracticeScreen() {
     getBoardArray(new Chess())
   );
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [possibleMoves, setPossibleMoves] = useState<Square[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
+
+  const {
+    legalGlowAlpha, startLegalGlow, stopLegalGlow,
+    glideState, triggerGlide, handleGlideComplete,
+    illegalSquare, illegalAlpha, illegalShakeX, triggerIllegalMove,
+    captureSquare, handleCaptureComplete, enabled: animEnabled,
+  } = useMoveAnimations();
+
+  const legalGlowStyle = useAnimatedStyle(() => ({ opacity: legalGlowAlpha.value }));
+  const illegalStyle = useAnimatedStyle(() => ({
+    opacity: illegalAlpha.value,
+    transform: [{ translateX: illegalShakeX.value }],
+  }));
 
   // Game history & result
   const [gameHistory, setGameHistory] = useState<Move[]>([]);
@@ -128,22 +104,7 @@ export default function PracticeScreen() {
   const [moveFeedback, setMoveFeedback] = useState<Record<number, string>>({});
   const [loadingFeedback, setLoadingFeedback] = useState<boolean>(false);
 
-  const botAvatar = useMemo(() => {
-    if (!difficulty) return null;
-
-    switch (difficulty) {
-      case "beginner":
-        return BABY_DRAGON_AVATARS[0];
-      case "rookie":
-        return TEENAGE_DRAGON_AVATARS[Math.floor(Math.random() * TEENAGE_DRAGON_AVATARS.length)];
-      case "adept":
-        return NON_FIERCE_ADULT_AVATARS[Math.floor(Math.random() * NON_FIERCE_ADULT_AVATARS.length)];
-      case "expert":
-        return FIERCE_ADULT_AVATARS[Math.floor(Math.random() * FIERCE_ADULT_AVATARS.length)];
-      default:
-        return null;
-    }
-  }, [difficulty]);
+  const botColor = difficulty ? BOT_COLORS[difficulty] : "#8099A8";
 
   function getBoardArray(chess: Chess): (ChessPiece | null)[][] {
     const boardArray: (ChessPiece | null)[][] = [];
@@ -405,9 +366,14 @@ export default function PracticeScreen() {
         const piece = game.get(square);
         if (piece && piece.color === game.turn()) {
           setSelectedSquare(square);
+          const moves = game.moves({ square, verbose: true });
+          setPossibleMoves(moves.map(m => m.to as Square));
+          startLegalGlow();
         }
       } else {
         try {
+          const fromPiece = game.get(selectedSquare);
+          const capturePiece = game.get(square);
           const result = game.move({
             from: selectedSquare,
             to: square,
@@ -415,26 +381,35 @@ export default function PracticeScreen() {
           });
 
           if (result) {
+            if (fromPiece) triggerGlide(selectedSquare, square, fromPiece, SQUARE_SIZE, false, capturePiece ? square : undefined);
+            stopLegalGlow();
             setGameHistory(prev => [...prev, result]);
             setLastMove({ from: result.from as Square, to: result.to as Square });
+          } else {
+            triggerIllegalMove(selectedSquare);
+            stopLegalGlow();
           }
           setBoard(getBoardArray(game));
+          setPossibleMoves([]);
           setSelectedSquare(null);
 
           if (game.isCheckmate()) {
             setGameResult({ winner: 'player', reason: 'Checkmate' });
           } else if (game.isDraw()) {
             setGameResult({ winner: 'draw', reason: game.isStalemate() ? 'Stalemate' : 'Draw' });
-          } else {
+          } else if (result) {
             setTimeout(() => makeComputerMove(), 500);
           }
         } catch (error) {
           console.log("Invalid move:", error);
+          triggerIllegalMove(selectedSquare);
+          stopLegalGlow();
+          setPossibleMoves([]);
           setSelectedSquare(null);
         }
       }
     },
-    [selectedSquare, game, gameResult, makeComputerMove]
+    [selectedSquare, game, gameResult, makeComputerMove, triggerGlide, triggerIllegalMove, startLegalGlow, stopLegalGlow]
   );
 
   // Get only player move indices (white = even indices: 0, 2, 4, ...)
@@ -733,7 +708,7 @@ export default function PracticeScreen() {
             }}
           >
             <LinearGradient
-              colors={currentMoveIndex === playerMoveIndices.length - 1 ? ["#4ECDC4", "#45B7AA"] : ["#FFD700", "#FFA500"]}
+              colors={currentMoveIndex === playerMoveIndices.length - 1 ? ["#4CAF82", "#3A9F6E"] : ["#FFD700", "#FFA500"]}
               style={styles.nextButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -917,60 +892,31 @@ export default function PracticeScreen() {
         <View style={styles.difficultyContainer}>
           <Text style={styles.difficultyTitle}>Select Difficulty Level</Text>
 
-          <TouchableOpacity
-            style={styles.difficultyButton}
-            onPress={() => { setDifficulty("beginner"); setShowTimerSelection(true); }}
-          >
-            <View style={styles.difficultyContent}>
-              <Image
-                source={getDragonAvatarSource(BABY_DRAGON_AVATARS[0])}
-                style={styles.difficultyAvatar}
-              />
-              <View style={styles.difficultyInfo}>
-                <Text style={styles.difficultyName}>Beginner</Text>
-                <Text style={styles.difficultyDesc}>Perfect for learning</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.difficultyButton}
-            onPress={() => { setDifficulty("rookie"); setShowTimerSelection(true); }}
-          >
-            <View style={styles.difficultyContent}>
-              <Image source={getDragonAvatarSource(TEENAGE_DRAGON_AVATARS[0])} style={styles.difficultyAvatar} />
-              <View style={styles.difficultyInfo}>
-                <Text style={styles.difficultyName}>Rookie</Text>
-                <Text style={styles.difficultyDesc}>Some challenge</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.difficultyButton}
-            onPress={() => { setDifficulty("adept"); setShowTimerSelection(true); }}
-          >
-            <View style={styles.difficultyContent}>
-              <Image source={getDragonAvatarSource(NON_FIERCE_ADULT_AVATARS[0])} style={styles.difficultyAvatar} />
-              <View style={styles.difficultyInfo}>
-                <Text style={styles.difficultyName}>Adept</Text>
-                <Text style={styles.difficultyDesc}>Real competition</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.difficultyButton}
-            onPress={() => { setDifficulty("expert"); setShowTimerSelection(true); }}
-          >
-            <View style={styles.difficultyContent}>
-              <Image source={getDragonAvatarSource(FIERCE_ADULT_AVATARS[0])} style={styles.difficultyAvatar} />
-              <View style={styles.difficultyInfo}>
-                <Text style={styles.difficultyName}>Expert</Text>
-                <Text style={styles.difficultyDesc}>Ultimate challenge</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+          {(["beginner", "rookie", "adept", "expert"] as DifficultyLevel[]).map((level) => {
+            const labels: Record<DifficultyLevel, { name: string; desc: string }> = {
+              beginner: { name: "Beginner", desc: "Perfect for learning" },
+              rookie:   { name: "Rookie",   desc: "Some challenge" },
+              adept:    { name: "Adept",    desc: "Real competition" },
+              expert:   { name: "Expert",   desc: "Ultimate challenge" },
+            };
+            return (
+              <TouchableOpacity
+                key={level}
+                style={styles.difficultyButton}
+                onPress={() => { setDifficulty(level); setShowTimerSelection(true); }}
+              >
+                <View style={styles.difficultyContent}>
+                  <View style={[styles.difficultyAvatar, { backgroundColor: BOT_COLORS[level], alignItems: "center", justifyContent: "center" }]}>
+                    <Bot size={28} color="#FFFFFF" strokeWidth={1.5} />
+                  </View>
+                  <View style={styles.difficultyInfo}>
+                    <Text style={styles.difficultyName}>{labels[level].name}</Text>
+                    <Text style={styles.difficultyDesc}>{labels[level].desc}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </LinearGradient>
     );
@@ -1056,7 +1002,9 @@ export default function PracticeScreen() {
           </View>
         )}
         <View style={styles.opponentInfo}>
-          {botAvatar && <Image source={getDragonAvatarSource(botAvatar)} style={styles.opponentAvatar} />}
+          <View style={[styles.opponentAvatar, { backgroundColor: botColor, alignItems: "center", justifyContent: "center" }]}>
+            <Bot size={22} color="#FFFFFF" strokeWidth={1.5} />
+          </View>
           <View>
             <Text style={styles.infoText}>Opponent: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Bot</Text>
           </View>
@@ -1081,6 +1029,7 @@ export default function PracticeScreen() {
                   const ranks = ["8", "7", "6", "5", "4", "3", "2", "1"];
                   const square = (files[colIndex] + ranks[rowIndex]) as Square;
                   const isSelected = selectedSquare === square;
+                  const isPossibleMove = possibleMoves.includes(square);
                   const isLastMoveSquare = lastMove && (lastMove.from === square || lastMove.to === square);
                   const themeColors = BOARD_THEMES[boardTheme as keyof typeof BOARD_THEMES];
 
@@ -1095,7 +1044,21 @@ export default function PracticeScreen() {
                       ]}
                       onPress={() => handleSquarePress(rowIndex, colIndex)}
                     >
-                      {piece && (
+                      {square === illegalSquare && (
+                        <Animated.View style={[StyleSheet.absoluteFillObject, styles.illegalOverlay, illegalStyle]} />
+                      )}
+                      {isPossibleMove && (
+                        animEnabled ? (
+                          <Animated.View style={[
+                            styles.possibleMoveDot,
+                            piece ? styles.captureIndicatorGlow : styles.moveIndicatorGlow,
+                            legalGlowStyle,
+                          ]} />
+                        ) : (
+                          <View style={styles.possibleMoveDot} />
+                        )
+                      )}
+                      {piece && !(glideState && (square === glideState.from || square === glideState.to)) && (
                         <View style={styles.pieceContainer}>
                           <ChessPieceComponent
                             type={piece.type}
@@ -1110,6 +1073,16 @@ export default function PracticeScreen() {
                 })}
               </View>
             ))}
+            <BoardAnimationOverlay
+              boardSize={BOARD_SIZE}
+              squareSize={SQUARE_SIZE}
+              isFlipped={false}
+              glideState={glideState}
+              pieceStyle={pieceStyle}
+              captureSquare={captureSquare}
+              onGlideComplete={handleGlideComplete}
+              onCaptureComplete={handleCaptureComplete}
+            />
           </View>
           <View style={styles.fileLabels}>
             {["a","b","c","d","e","f","g","h"].map((file) => (
@@ -1182,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "600" as const,
   },
 
@@ -1235,6 +1208,28 @@ const styles = StyleSheet.create({
   lastMoveHighlight: {
     backgroundColor: "rgba(255, 215, 0, 0.3)",
   },
+  illegalOverlay: {
+    backgroundColor: "rgba(255, 30, 30, 0.6)",
+    zIndex: 5,
+  },
+  possibleMoveDot: {
+    position: "absolute",
+    width: SQUARE_SIZE * 0.32,
+    height: SQUARE_SIZE * 0.32,
+    borderRadius: SQUARE_SIZE * 0.16,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+  },
+  moveIndicatorGlow: {
+    backgroundColor: "rgba(0, 220, 80, 0.75)",
+  },
+  captureIndicatorGlow: {
+    width: SQUARE_SIZE - 4,
+    height: SQUARE_SIZE - 4,
+    borderRadius: SQUARE_SIZE / 2,
+    backgroundColor: "transparent",
+    borderWidth: 3,
+    borderColor: "rgba(0, 220, 80, 0.75)",
+  },
   pieceContainer: {
     width: "100%",
     height: "100%",
@@ -1270,7 +1265,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   difficultyContent: {
     flexDirection: "row",
@@ -1295,7 +1290,7 @@ const styles = StyleSheet.create({
   },
   difficultyDesc: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   opponentInfo: {
     flexDirection: "row",
@@ -1318,7 +1313,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     alignItems: "center",
   },
   timerText: {
@@ -1343,11 +1338,11 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   timerLabel: {
     fontSize: 12,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "600" as const,
     marginBottom: 4,
   },
@@ -1409,7 +1404,7 @@ const styles = StyleSheet.create({
   },
   gameOverDifficultyLabel: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontWeight: "600" as const,
     marginTop: 8,
   },

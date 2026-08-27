@@ -271,7 +271,7 @@ export function ProfileAchievements({
           onPress={handleViewAll}
         >
           <Text style={styles.viewAllText}>View All</Text>
-          <ChevronRight size={16} color="#4ECDC4" />
+          <ChevronRight size={16} color="#4CAF82" />
         </TouchableOpacity>
       </View>
 
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 
   // Featured Card

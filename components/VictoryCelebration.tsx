@@ -2,7 +2,7 @@
  * VictoryCelebration Component
  *
  * Animated celebration overlay for game results.
- * Uses Unity assets: dragons, rays, and themed backgrounds.
+ * Uses abstract geometric shapes and particle effects.
  */
 
 import React, { useEffect, useRef, useMemo } from "react";
@@ -13,20 +13,16 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Text,
 } from "react-native";
+import { Colors, FontFamily } from "@/constants/theme";
 
 // ============================================================================
-// Asset Imports
+// Asset Imports (non-mascot only)
 // ============================================================================
 
 const ASSETS = {
-  leftDragon: require("@/assets/images/result-screen/Left_Dragon.png"),
-  rightDragon: require("@/assets/images/result-screen/Right_Dragon.png"),
   rays: require("@/assets/images/result-screen/Rays.png"),
-  greenBackground: require("@/assets/images/result-screen/green_background.png"),
-  redBackground: require("@/assets/images/result-screen/red_background.png"),
-  dragon1: require("@/assets/images/result-screen/dragon_1.png"),
-  dragon2: require("@/assets/images/result-screen/dragon_2.png"),
 };
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -38,22 +34,17 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 export type CelebrationResult = "win" | "lose" | "draw";
 
 export interface VictoryCelebrationProps {
-  /** The game result */
   result: CelebrationResult;
-  /** Whether to show the celebration */
   visible: boolean;
-  /** Callback when animation completes */
   onAnimationComplete?: () => void;
-  /** Children to render on top of the celebration */
   children?: React.ReactNode;
 }
 
 // ============================================================================
-// Component
+// Confetti particles (wins)
 // ============================================================================
 
-// Confetti particle component for wins
-const CONFETTI_COLORS = ["#FFD700", "#FF6B6B", "#4ECDC4", "#6366F1", "#FF9F43", "#FFFFFF", "#22C55E"];
+const CONFETTI_COLORS = [Colors.primary, Colors.primaryLight, Colors.positive, "#FFFFFF", Colors.primaryDark];
 const NUM_CONFETTI = 30;
 
 function ConfettiParticles({ visible }: { visible: boolean }) {
@@ -137,122 +128,89 @@ function ConfettiParticles({ visible }: { visible: boolean }) {
   );
 }
 
+// ============================================================================
+// Abstract side accent — replaces dragon silhouettes
+// ============================================================================
+
+function SideAccent({ side, translateX, translateY }: { side: "left" | "right"; translateX: Animated.Value; translateY: Animated.Value }) {
+  return (
+    <Animated.View
+      style={[
+        styles.sideAccent,
+        side === "left" ? styles.sideAccentLeft : styles.sideAccentRight,
+        { transform: [{ translateX }, { translateY }] },
+      ]}
+    >
+      <View style={styles.accentRing} />
+      <View style={styles.accentCoin}>
+        <Text style={styles.accentCoinText}>TC</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// VictoryCelebration
+// ============================================================================
+
 export function VictoryCelebration({
   result,
   visible,
   onAnimationComplete,
   children,
 }: VictoryCelebrationProps) {
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const raysRotation = useRef(new Animated.Value(0)).current;
   const raysScale = useRef(new Animated.Value(0.5)).current;
-  const leftDragonX = useRef(new Animated.Value(-200)).current;
-  const rightDragonX = useRef(new Animated.Value(200)).current;
-  const dragonBounce = useRef(new Animated.Value(0)).current;
+  const leftAccentX = useRef(new Animated.Value(-200)).current;
+  const rightAccentX = useRef(new Animated.Value(200)).current;
+  const accentBounce = useRef(new Animated.Value(0)).current;
   const contentScale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Reset animations
       fadeAnim.setValue(0);
       raysRotation.setValue(0);
       raysScale.setValue(0.5);
-      leftDragonX.setValue(-200);
-      rightDragonX.setValue(200);
-      dragonBounce.setValue(0);
+      leftAccentX.setValue(-200);
+      rightAccentX.setValue(200);
+      accentBounce.setValue(0);
       contentScale.setValue(0);
 
-      // Start animations
       Animated.parallel([
-        // Fade in
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-
-        // Rays rotation (continuous)
+        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.loop(
-          Animated.timing(raysRotation, {
-            toValue: 1,
-            duration: 10000,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          })
+          Animated.timing(raysRotation, { toValue: 1, duration: 10000, easing: Easing.linear, useNativeDriver: true })
         ),
-
-        // Rays scale in
-        Animated.spring(raysScale, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-
-        // Dragons slide in
+        Animated.spring(raysScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
         Animated.sequence([
           Animated.delay(200),
           Animated.parallel([
-            Animated.spring(leftDragonX, {
-              toValue: 0,
-              tension: 60,
-              friction: 8,
-              useNativeDriver: true,
-            }),
-            Animated.spring(rightDragonX, {
-              toValue: 0,
-              tension: 60,
-              friction: 8,
-              useNativeDriver: true,
-            }),
+            Animated.spring(leftAccentX, { toValue: 0, tension: 60, friction: 8, useNativeDriver: true }),
+            Animated.spring(rightAccentX, { toValue: 0, tension: 60, friction: 8, useNativeDriver: true }),
           ]),
         ]),
-
-        // Dragon bounce animation
         Animated.loop(
           Animated.sequence([
-            Animated.timing(dragonBounce, {
-              toValue: 1,
-              duration: 1500,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-            Animated.timing(dragonBounce, {
-              toValue: 0,
-              duration: 1500,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
+            Animated.timing(accentBounce, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(accentBounce, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
           ])
         ),
-
-        // Content scale in
         Animated.sequence([
           Animated.delay(400),
-          Animated.spring(contentScale, {
-            toValue: 1,
-            tension: 50,
-            friction: 7,
-            useNativeDriver: true,
-          }),
+          Animated.spring(contentScale, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
         ]),
-      ]).start(() => {
-        onAnimationComplete?.();
-      });
+      ]).start(() => { onAnimationComplete?.(); });
     }
   }, [visible]);
 
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
   const raysRotationInterpolate = raysRotation.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
-
-  const dragonBounceInterpolate = dragonBounce.interpolate({
+  const accentBounceInterpolate = accentBounce.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -10],
   });
@@ -262,79 +220,36 @@ export function VictoryCelebration({
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]} pointerEvents="none">
-      {/* Background color overlay */}
       <View
         style={[
           styles.backgroundOverlay,
           {
             backgroundColor: isWin
-              ? "rgba(34, 197, 94, 0.3)"
+              ? "rgba(41, 196, 160, 0.2)"
               : isDraw
-              ? "rgba(251, 191, 36, 0.3)"
-              : "rgba(239, 68, 68, 0.3)",
+              ? `${Colors.primary}30`
+              : "rgba(255, 107, 107, 0.2)",
           },
         ]}
       />
 
-      {/* Confetti particles (only for win) */}
       {isWin && <ConfettiParticles visible={visible} />}
 
-      {/* Rays animation (only for win) */}
       {isWin && (
         <Animated.Image
           source={ASSETS.rays}
           style={[
             styles.rays,
-            {
-              transform: [
-                { rotate: raysRotationInterpolate },
-                { scale: raysScale },
-              ],
-            },
+            { transform: [{ rotate: raysRotationInterpolate }, { scale: raysScale }] },
           ]}
           resizeMode="contain"
         />
       )}
 
-      {/* Left Dragon */}
-      <Animated.Image
-        source={ASSETS.leftDragon}
-        style={[
-          styles.leftDragon,
-          {
-            transform: [
-              { translateX: leftDragonX },
-              { translateY: dragonBounceInterpolate },
-            ],
-          },
-        ]}
-        resizeMode="contain"
-      />
+      <SideAccent side="left" translateX={leftAccentX} translateY={accentBounceInterpolate} />
+      <SideAccent side="right" translateX={rightAccentX} translateY={accentBounceInterpolate} />
 
-      {/* Right Dragon */}
-      <Animated.Image
-        source={ASSETS.rightDragon}
-        style={[
-          styles.rightDragon,
-          {
-            transform: [
-              { translateX: rightDragonX },
-              { translateY: dragonBounceInterpolate },
-            ],
-          },
-        ]}
-        resizeMode="contain"
-      />
-
-      {/* Content container */}
-      <Animated.View
-        style={[
-          styles.contentContainer,
-          {
-            transform: [{ scale: contentScale }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.contentContainer, { transform: [{ scale: contentScale }] }]}>
         {children}
       </Animated.View>
     </Animated.View>
@@ -342,7 +257,7 @@ export function VictoryCelebration({
 }
 
 // ============================================================================
-// Simpler Dragons Component (for inline use)
+// AnimatedParticles — abstract gold coin accent (replaces AnimatedDragons)
 // ============================================================================
 
 export interface AnimatedDragonsProps {
@@ -355,18 +270,8 @@ export function AnimatedDragons({ size = 80 }: AnimatedDragonsProps) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(bounceAnim, {
-          toValue: 1,
-          duration: 1200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(bounceAnim, {
-          toValue: 0,
-          duration: 1200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
+        Animated.timing(bounceAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bounceAnim, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       ])
     ).start();
   }, []);
@@ -376,30 +281,38 @@ export function AnimatedDragons({ size = 80 }: AnimatedDragonsProps) {
     outputRange: [0, -8],
   });
 
+  const coinStyle = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    backgroundColor: Colors.primary,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  };
+
   return (
     <View style={styles.dragonsRow}>
-      <Animated.Image
-        source={ASSETS.dragon1}
-        style={[
-          { width: size, height: size },
-          { transform: [{ translateY: bounceInterpolate }] },
-        ]}
-        resizeMode="contain"
-      />
-      <Animated.Image
-        source={ASSETS.dragon2}
-        style={[
-          { width: size, height: size },
-          { transform: [{ translateY: bounceInterpolate }] },
-        ]}
-        resizeMode="contain"
-      />
+      {[0, 1].map((idx) => (
+        <Animated.View
+          key={idx}
+          style={[coinStyle, { transform: [{ translateY: bounceInterpolate }] }]}
+        >
+          <Text style={{ fontFamily: FontFamily.spaceGroteskBold, fontSize: size * 0.28, color: Colors.background }}>
+            TC
+          </Text>
+        </Animated.View>
+      ))}
     </View>
   );
 }
 
 // ============================================================================
-// Spinning Rays Component (standalone)
+// SpinningRays (unchanged — rays are abstract, not RPG-themed)
 // ============================================================================
 
 export interface SpinningRaysProps {
@@ -412,12 +325,7 @@ export function SpinningRays({ size = 300, tint }: SpinningRaysProps) {
 
   useEffect(() => {
     Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 15000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
+      Animated.timing(rotateAnim, { toValue: 1, duration: 15000, easing: Easing.linear, useNativeDriver: true })
     ).start();
   }, []);
 
@@ -430,13 +338,8 @@ export function SpinningRays({ size = 300, tint }: SpinningRaysProps) {
     <Animated.Image
       source={ASSETS.rays}
       style={[
-        {
-          width: size,
-          height: size,
-          position: "absolute",
-          opacity: 0.3,
-        },
-        tint && { tintColor: tint },
+        { width: size, height: size, position: "absolute", opacity: 0.3 },
+        tint ? { tintColor: tint } : {},
         { transform: [{ rotate: rotateInterpolate }] },
       ]}
       resizeMode="contain"
@@ -462,21 +365,45 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: SCREEN_WIDTH * 1.5,
     height: SCREEN_WIDTH * 1.5,
-    opacity: 0.4,
+    opacity: 0.35,
+    tintColor: Colors.primary,
   },
-  leftDragon: {
+  sideAccent: {
     position: "absolute",
-    left: -20,
-    top: "15%",
-    width: 150,
-    height: 200,
+    top: "18%",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 100,
+    height: 120,
   },
-  rightDragon: {
+  sideAccentLeft: { left: -14 },
+  sideAccentRight: { right: -14 },
+  accentRing: {
     position: "absolute",
-    right: -20,
-    top: "15%",
-    width: 150,
-    height: 200,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: `${Colors.primary}60`,
+  },
+  accentCoin: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  accentCoinText: {
+    fontFamily: FontFamily.spaceGroteskBold,
+    fontSize: 20,
+    color: Colors.background,
+    letterSpacing: -0.5,
   },
   contentContainer: {
     alignItems: "center",

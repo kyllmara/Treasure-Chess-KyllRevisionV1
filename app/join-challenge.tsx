@@ -371,21 +371,21 @@ export default function JoinChallengeScreen() {
               <View style={styles.statusContainer}>
                 {isSearching && (
                   <View style={styles.statusRow}>
-                    <ActivityIndicator color="#4ECDC4" size="small" />
+                    <ActivityIndicator color="#4CAF82" size="small" />
                     <Text style={styles.statusText}>Searching...</Text>
                   </View>
                 )}
 
                 {searchError && !isSearching && (
                   <View style={styles.statusRow}>
-                    <AlertCircle size={18} color="#FF6B6B" />
+                    <AlertCircle size={18} color="#E05C5C" />
                     <Text style={styles.statusTextError}>{searchError}</Text>
                   </View>
                 )}
 
                 {currentChallenge && !isSearching && (
                   <View style={styles.statusRow}>
-                    <CheckCircle size={18} color="#4ECDC4" />
+                    <CheckCircle size={18} color="#4CAF82" />
                     <Text style={styles.statusTextSuccess}>Challenge found!</Text>
                   </View>
                 )}
@@ -443,7 +443,7 @@ export default function JoinChallengeScreen() {
                 {/* Game Settings */}
                 <View style={styles.settingsGrid}>
                   <View style={styles.settingItem}>
-                    <Clock size={18} color="#4ECDC4" />
+                    <Clock size={18} color="#4CAF82" />
                     <Text style={styles.settingValue}>
                       {Math.floor(currentChallenge.time_control_seconds / 60)}+
                       {currentChallenge.increment_seconds}
@@ -464,7 +464,7 @@ export default function JoinChallengeScreen() {
                   <View style={styles.settingItem}>
                     {currentChallenge.is_rated ? (
                       <>
-                        <Trophy size={18} color="#4ECDC4" />
+                        <Trophy size={18} color="#4CAF82" />
                         <Text style={styles.settingValue}>Rated</Text>
                       </>
                     ) : (
@@ -487,7 +487,7 @@ export default function JoinChallengeScreen() {
                 {/* Wager Warning */}
                 {currentChallenge.wager_tct > 0 && !canJoin && (
                   <View style={styles.warningBox}>
-                    <AlertCircle size={16} color="#FF6B6B" />
+                    <AlertCircle size={16} color="#E05C5C" />
                     <Text style={styles.warningText}>
                       {`Insufficient balance. You need ${currentChallenge.wager_tct} TCT. You have: ${storeTctBalance} TCT`}
                     </Text>
@@ -501,7 +501,7 @@ export default function JoinChallengeScreen() {
                   disabled={isProcessing || !canJoin}
                 >
                   <LinearGradient
-                    colors={canJoin ? ["#4ECDC4", "#44A08D"] : ["#444", "#333"]}
+                    colors={canJoin ? ["#4CAF82", "#3A9F6E"] : ["#444", "#333"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.joinButtonGradient}
@@ -522,7 +522,7 @@ export default function JoinChallengeScreen() {
             {/* Search Button (when code is complete but not searched) */}
             {isCodeComplete && !currentChallenge && !isSearching && (
               <TouchableOpacity style={styles.searchButton} onPress={() => handleSearch()}>
-                <Search size={18} color="#4ECDC4" />
+                <Search size={18} color="#4CAF82" />
                 <Text style={styles.searchButtonText}>Search Again</Text>
               </TouchableOpacity>
             )}
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   codeBoxFilled: {
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     backgroundColor: "rgba(78, 205, 196, 0.1)",
   },
   codeBoxActive: {
@@ -630,11 +630,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 215, 0, 0.1)",
   },
   codeBoxError: {
-    borderColor: "#FF6B6B",
+    borderColor: "#E05C5C",
     backgroundColor: "rgba(255, 107, 107, 0.1)",
   },
   codeBoxSuccess: {
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     backgroundColor: "rgba(78, 205, 196, 0.15)",
   },
   codeChar: {
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     color: "#FFF",
   },
   codeCharSuccess: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   cursor: {
     position: "absolute",
@@ -671,15 +671,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
   },
   statusTextError: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
   },
   statusTextSuccess: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
     fontWeight: "600",
   },
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   challengeLabel: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   usdcHint: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 12,
     textAlign: "center",
     marginBottom: 12,
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   warningText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 12,
     flex: 1,
   },
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   searchButtonText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
     fontWeight: "600",
   },

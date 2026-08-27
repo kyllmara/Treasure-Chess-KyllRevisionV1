@@ -9,6 +9,7 @@
 import { supabase } from "./supabase";
 import { ethers } from "ethers";
 import { USDC_TO_TCT_RATE } from "./tct";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 
 // Platform vault configuration — address fetched from DB, never hardcoded
 const USDC_CONTRACT_ADDRESS = process.env.EXPO_PUBLIC_USDC_ADDRESS || "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -871,9 +872,9 @@ export async function getAdminProfile(userId: string): Promise<{
   requires2FA: boolean;
   is2FAEnabled: boolean;
 } | null> {
-  // Skip if userId is not a valid UUID (e.g., "guest_user")
+  // Skip for guest IDs and dev bypass (stub UUID has no admin rows)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!userId || !uuidRegex.test(userId)) {
+  if (DEV_BYPASS_AUTH || !userId || !uuidRegex.test(userId)) {
     return null;
   }
 
@@ -894,6 +895,13 @@ export async function getAdminProfile(userId: string): Promise<{
           requires2FA: false,
           is2FAEnabled: false,
         };
+      }
+      // PGRST116 = no rows — expected for stub/unregistered user in dev bypass
+      if (error.code === "PGRST116") {
+        if (process.env.EXPO_PUBLIC_SKIP_AUTH !== "true") {
+          console.error("Error fetching admin profile:", error);
+        }
+        return null;
       }
       console.error("Error fetching admin profile:", error);
       return null;

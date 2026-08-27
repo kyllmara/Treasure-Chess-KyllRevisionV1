@@ -27,6 +27,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
@@ -71,8 +72,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Constants
 const TCT_TO_USD_RATE = 0.04; // 1 TCT = $0.04 (25 TCT = $1)
 const USDC_TO_TCT = 25; // 1 USDC = 25 TCT
-const MIN_WITHDRAWAL_TCT = 250; // Flat $10 minimum across all methods
-const WITHDRAWAL_FEE_PERCENT = 1; // 1% platform fee
+const MIN_WITHDRAWAL_TCT = 250;   // Flat $10 minimum across all methods
+const WITHDRAWAL_FEE_PERCENT = 6.5; // 6.5% total (5% platform + 1.5% Stripe instant payout)
 
 type WithdrawalMethod = "base" | "bridge" | "bank";
 type WithdrawalStep =
@@ -199,7 +200,7 @@ function PendingWithdrawalItem({ withdrawal }: { withdrawal: PendingWithdrawal }
     <View style={styles.pendingItem}>
       <View style={styles.pendingIconContainer}>
         {withdrawal.status === "completed" ? (
-          <CheckCircle size={24} color="#4ECDC4" />
+          <CheckCircle size={24} color="#4CAF82" />
         ) : withdrawal.status === "failed" ? (
           <AlertCircle size={24} color="#F5576C" />
         ) : (
@@ -241,7 +242,7 @@ function PendingWithdrawalItem({ withdrawal }: { withdrawal: PendingWithdrawal }
 // ============================================================================
 export default function WithdrawScreen() {
   const router = useRouter();
-  const { profile, refreshBalance } = useUserStore();
+  const { profile, refreshBalance, fetchProfile } = useUserStore();
   const { pendingWithdrawals, refreshTransactions } = useWalletStore();
   const {
     address: walletAddress,
@@ -265,6 +266,7 @@ export default function WithdrawScreen() {
   const [destinationChain, setDestinationChain] = useState<ChainDefinition | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [pendingWithdrawalsList, setPendingWithdrawalsList] = useState<PendingWithdrawal[]>([]);
   const [withdrawalResult, setWithdrawalResult] = useState<{
     success: boolean;
@@ -292,9 +294,8 @@ export default function WithdrawScreen() {
   // Ref for amount input to focus programmatically
   const amountInputRef = useRef<TextInput>(null);
 
-  // Use on-chain USDC balance for withdrawals (user's actual wallet balance)
-  // The new withdrawal flow transfers directly from user's wallet
-  const availableBalance = onChainAvailableTct;
+  // Use Supabase balance — TCT is a platform token, not on-chain
+  const availableBalance = profile?.availableTct ?? 0;
   const lockedBalance = onChainLockedTct;
 
   // Get wallet address
@@ -404,7 +405,7 @@ export default function WithdrawScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (method === "bank") {
-      setStep("bank-details");
+      setStep("confirm"); // Stripe Connect — no bank-details step needed
     } else {
       setStep("address");
     }
@@ -759,7 +760,7 @@ export default function WithdrawScreen() {
         if (method === "base") {
           setStep("address");
         } else if (method === "bank") {
-          setStep("bank-details");
+          setStep("amount"); // Stripe Connect — bank-details step is skipped
         } else {
           setStep("address");
         }
@@ -773,6 +774,63 @@ export default function WithdrawScreen() {
     }
   }, [step, method, router]);
 
+  // Open Stripe Connect onboarding (first-time) or go straight to amount step
+  const handleStripeWithdraw = useCallback(async () => {
+    const connectAccountId = profile?.stripeConnectAccountId;
+
+    if (!connectAccountId) {
+      setIsStripeLoading(true);
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke("stripe-connect-onboard", {
+          body: { return_url: "treasurechess://withdraw" },
+        });
+        if (invokeError) throw new Error(invokeError.message ?? "Failed to start onboarding");
+        if (data?.error) throw new Error(data.error);
+
+        await WebBrowser.openAuthSessionAsync(data.onboarding_url, "treasurechess://");
+        // Re-fetch full profile so stripe_connect_account_id lands in the store
+        if (profile?.authUserId) await fetchProfile(profile.authUserId);
+      } catch (err: any) {
+        Alert.alert("Setup Error", err.message ?? "Failed to set up payout account. Please try again.");
+        return;
+      } finally {
+        setIsStripeLoading(false);
+      }
+    }
+
+    setMethod("bank");
+    setAmountRaw(Math.min(MIN_WITHDRAWAL_TCT, availableBalance));
+    setAmountText(String(Math.min(MIN_WITHDRAWAL_TCT, availableBalance)));
+    setStep("amount");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [profile, availableBalance, refreshBalance, fetchProfile]);
+
+  // Execute the Stripe Connect payout
+  const handleStripePayout = useCallback(async () => {
+    if (amount < MIN_WITHDRAWAL_TCT) return;
+
+    setIsStripeLoading(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-payout", {
+        body: { amount_tct: amount },
+      });
+      if (invokeError) throw new Error(invokeError.message ?? "Payout failed");
+      if (data?.error) throw new Error(data.error);
+
+      await refreshBalance();
+      setWithdrawalResult({
+        success: true,
+        message: `$${data.amount_usd.toFixed(2)} is on its way to your debit card — should arrive within ~30 minutes.`,
+      });
+      setStep("complete");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert("Withdrawal Error", err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setIsStripeLoading(false);
+    }
+  }, [amount, refreshBalance]);
+
   const handleDone = useCallback(() => {
     router.back();
   }, [router]);
@@ -782,23 +840,34 @@ export default function WithdrawScreen() {
   // ============================================================================
 
   const renderSelectStep = () => {
+    const hasConnectAccount = !!profile?.stripeConnectAccountId;
+    const insufficientBalance = availableBalance < MIN_WITHDRAWAL_TCT;
+
     return (
       <View style={styles.stepContent}>
         <Text style={styles.stepTitle}>Withdraw Funds</Text>
-        <Text style={styles.stepSubtitle}>Choose how you'd like to receive your funds</Text>
+        <Text style={styles.stepSubtitle}>Cash out your TCT earnings to your bank account</Text>
 
         <View style={styles.methodsContainer}>
           <MethodCard
-            title="Base Wallet"
-            subtitle="USDC to any Base address"
-            icon={Send}
-            gradientColors={["#0052FF", "#003DC4"]}
-            onPress={() => handleSelectMethod("base")}
-            badge="~15 min"
-            disabled={availableBalance < MIN_WITHDRAWAL_TCT}
+            title="Instant Debit Card"
+            subtitle={hasConnectAccount ? "Powered by Stripe · Account connected" : "Powered by Stripe · One-time setup required"}
+            icon={Building2}
+            gradientColors={["#635BFF", "#4B44CC"]}
+            onPress={handleStripeWithdraw}
+            badge="~30 min"
+            disabled={insufficientBalance || isStripeLoading}
           />
-
         </View>
+
+        {insufficientBalance && (
+          <View style={styles.infoBox}>
+            <Info size={16} color="#F5576C" />
+            <Text style={[styles.infoText, { color: "#F5576C" }]}>
+              Minimum withdrawal is {formatTCT(MIN_WITHDRAWAL_TCT)} TCT (${formatUSD(tctToUsd(MIN_WITHDRAWAL_TCT))}). Play and win more to withdraw.
+            </Text>
+          </View>
+        )}
 
         {pendingWithdrawalsList.length > 0 && (
           <View style={styles.pendingSection}>
@@ -812,7 +881,7 @@ export default function WithdrawScreen() {
         <View style={styles.infoBox}>
           <Info size={16} color="#A0A0A0" />
           <Text style={styles.infoText}>
-            Minimum withdrawal: {formatTCT(MIN_WITHDRAWAL_TCT)} TCT (${formatUSD(tctToUsd(MIN_WITHDRAWAL_TCT))}). 1% platform fee on all withdrawals.
+            6.5% fee on withdrawals (includes Stripe instant payout). Minimum {formatTCT(MIN_WITHDRAWAL_TCT)} TCT (${formatUSD(tctToUsd(MIN_WITHDRAWAL_TCT))}). Funds arrive to your debit card in ~30 minutes.
           </Text>
         </View>
       </View>
@@ -962,7 +1031,7 @@ export default function WithdrawScreen() {
           disabled={!isValidAmount}
         >
           <LinearGradient
-            colors={isValidAmount ? ["#4ECDC4", "#44A08D"] : ["#444", "#333"]}
+            colors={isValidAmount ? ["#4CAF82", "#3A9F6E"] : ["#444", "#333"]}
             style={styles.continueButtonGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -992,7 +1061,7 @@ export default function WithdrawScreen() {
         {/* Network Info Box */}
         <View style={styles.networkInfoBox}>
           <View style={styles.networkInfoHeader}>
-            <Globe size={20} color="#4ECDC4" />
+            <Globe size={20} color="#4CAF82" />
             <Text style={styles.networkInfoTitle}>Network: {networkName}</Text>
           </View>
           <Text style={styles.networkInfoText}>
@@ -1054,7 +1123,7 @@ export default function WithdrawScreen() {
           disabled={!isValidAddress || isFetchingQuote}
         >
           <LinearGradient
-            colors={isValidAddress && !isFetchingQuote ? ["#4ECDC4", "#44A08D"] : ["#444", "#333"]}
+            colors={isValidAddress && !isFetchingQuote ? ["#4CAF82", "#3A9F6E"] : ["#444", "#333"]}
             style={styles.continueButtonGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -1158,7 +1227,7 @@ export default function WithdrawScreen() {
           disabled={!isValidBankDetails}
         >
           <LinearGradient
-            colors={isValidBankDetails ? ["#4ECDC4", "#44A08D"] : ["#444", "#333"]}
+            colors={isValidBankDetails ? ["#4CAF82", "#3A9F6E"] : ["#444", "#333"]}
             style={styles.continueButtonGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -1213,10 +1282,10 @@ export default function WithdrawScreen() {
               </Text>
             </View>
             <View style={[styles.confirmRow, { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 12, marginTop: 4 }]}>
-              <Text style={[styles.confirmLabel, { color: "#4ECDC4", fontWeight: "600" }]}>
+              <Text style={[styles.confirmLabel, { color: "#4CAF82", fontWeight: "600" }]}>
                 Est. Receive
               </Text>
-              <Text style={[styles.confirmValue, { color: "#4ECDC4" }]}>
+              <Text style={[styles.confirmValue, { color: "#4CAF82" }]}>
                 {bridgeFees.estimatedReceiveAmount} USDC
               </Text>
             </View>
@@ -1243,7 +1312,7 @@ export default function WithdrawScreen() {
           </View>
 
           <View style={styles.signatureNote}>
-            <Info size={16} color="#4ECDC4" />
+            <Info size={16} color="#4CAF82" />
             <Text style={styles.signatureNoteText}>
               Bridge fees are paid from the transferred USDC. The platform vault covers Base gas.
             </Text>
@@ -1322,7 +1391,7 @@ export default function WithdrawScreen() {
                 </View>
                 <View style={styles.confirmRow}>
                   <Text style={styles.confirmLabel}>Processing Time</Text>
-                  <Text style={[styles.confirmValue, { color: "#4ECDC4" }]}>~15 minutes</Text>
+                  <Text style={[styles.confirmValue, { color: "#4CAF82" }]}>~15 minutes</Text>
                 </View>
               </>
             )}
@@ -1330,26 +1399,28 @@ export default function WithdrawScreen() {
             {isBank && (
               <>
                 <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Account Name</Text>
-                  <Text style={styles.confirmValue}>{bankDetails.accountName}</Text>
+                  <Text style={styles.confirmLabel}>You withdraw</Text>
+                  <Text style={styles.confirmValue}>{formatTCT(amount)} TCT</Text>
                 </View>
                 <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Account Number</Text>
-                  <Text style={styles.confirmValue}>****{bankDetails.accountNumber.slice(-4)}</Text>
+                  <Text style={styles.confirmLabel}>Fee (6.5%)</Text>
+                  <Text style={styles.confirmValue}>−${formatUSD(tctToUsd(amount) * 0.065)}</Text>
                 </View>
                 <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Sort Code</Text>
-                  <Text style={styles.confirmValue}>{bankDetails.sortCode}</Text>
+                  <Text style={styles.confirmLabel}>You receive</Text>
+                  <Text style={[styles.confirmValue, { color: "#4CAF82", fontWeight: "700" }]}>${formatUSD(tctToUsd(amount) * 0.935)}</Text>
                 </View>
-                {bankDetails.iban ? (
-                  <View style={styles.confirmRow}>
-                    <Text style={styles.confirmLabel}>IBAN</Text>
-                    <Text style={styles.confirmValue}>{bankDetails.iban}</Text>
-                  </View>
-                ) : null}
                 <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>Processing Time</Text>
-                  <Text style={styles.confirmValue}>2-3 business days</Text>
+                  <Text style={styles.confirmLabel}>To</Text>
+                  <Text style={styles.confirmValue}>Your verified debit card</Text>
+                </View>
+                <View style={styles.confirmRow}>
+                  <Text style={styles.confirmLabel}>Via</Text>
+                  <Text style={styles.confirmValue}>Stripe Instant Payout</Text>
+                </View>
+                <View style={styles.confirmRow}>
+                  <Text style={styles.confirmLabel}>Arrives</Text>
+                  <Text style={[styles.confirmValue, { color: "#4CAF82" }]}>~30 minutes</Text>
                 </View>
               </>
             )}
@@ -1366,13 +1437,12 @@ export default function WithdrawScreen() {
             <Shield size={16} color={iconColor} />
             <Text style={[styles.signatureNoteText, { color: iconColor }]}>
               {isBank
-                ? "Your bank details are stored securely. An admin will process the transfer."
+                ? "Processed securely via Stripe Connect. Funds sent directly to your verified bank account."
                 : "Your TCT is locked and USDC will be sent from the platform vault to your address."}
             </Text>
           </View>
         </View>
 
-        {/* Final Warning for Crypto */}
         {isBase && (
           <View style={styles.finalWarningBox}>
             <AlertCircle size={18} color="#F5576C" />
@@ -1383,28 +1453,26 @@ export default function WithdrawScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.continueButton, isLoading && styles.continueButtonDisabled]}
-          onPress={handleConfirmSubmit}
-          disabled={isLoading}
+          style={[styles.continueButton, (isLoading || isStripeLoading) && styles.continueButtonDisabled]}
+          onPress={isBank ? handleStripePayout : handleConfirmSubmit}
+          disabled={isLoading || isStripeLoading}
         >
           <LinearGradient
-            colors={!isLoading ? ["#FFD700", "#FFA500"] : ["#444", "#333"]}
+            colors={isBank ? ["#635BFF", "#4B44CC"] : (!isLoading ? ["#FFD700", "#FFA500"] : ["#444", "#333"])}
             style={styles.continueButtonGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
           >
-            {isLoading ? (
+            {isStripeLoading || isLoading ? (
               <>
                 <ActivityIndicator size="small" color="#FFFFFF" />
-                <Text style={styles.continueButtonText}>
-                  {isBank ? "Submitting..." : "Processing..."}
-                </Text>
+                <Text style={styles.continueButtonText}>Processing...</Text>
               </>
             ) : (
               <>
-                <Shield size={20} color="#000" />
-                <Text style={[styles.continueButtonText, { color: "#000" }]}>
-                  {isBank ? "Submit Withdrawal" : "Confirm Withdrawal"}
+                <Shield size={20} color={isBank ? "#FFFFFF" : "#000"} />
+                <Text style={[styles.continueButtonText, { color: isBank ? "#FFFFFF" : "#000" }]}>
+                  {isBank ? `Withdraw $${formatUSD(tctToUsd(amount) * 0.935)}` : "Confirm Withdrawal"}
                 </Text>
               </>
             )}
@@ -1419,7 +1487,7 @@ export default function WithdrawScreen() {
       <View style={styles.stepContent}>
         <View style={styles.completeCard}>
           <View style={styles.completeIconContainer}>
-            <ActivityIndicator size="large" color="#4ECDC4" />
+            <ActivityIndicator size="large" color="#4CAF82" />
           </View>
 
           <Text style={styles.completeTitle}>Bridging in Progress</Text>
@@ -1459,7 +1527,7 @@ export default function WithdrawScreen() {
         <View style={styles.completeCard}>
           <View style={styles.completeIconContainer}>
             {withdrawalResult?.success ? (
-              <CheckCircle size={64} color="#4ECDC4" />
+              <CheckCircle size={64} color="#4CAF82" />
             ) : (
               <AlertCircle size={64} color="#F5576C" />
             )}
@@ -1488,7 +1556,7 @@ export default function WithdrawScreen() {
 
           <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
             <LinearGradient
-              colors={["#4ECDC4", "#44A08D"]}
+              colors={["#4CAF82", "#3A9F6E"]}
               style={styles.doneButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -2015,7 +2083,7 @@ const styles = StyleSheet.create({
   networkInfoTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   networkInfoText: {
     fontSize: 13,
@@ -2130,7 +2198,7 @@ const styles = StyleSheet.create({
   summaryValueHighlight: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 
   // Confirm Card
@@ -2197,7 +2265,7 @@ const styles = StyleSheet.create({
   },
   signatureNoteText: {
     fontSize: 13,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     flex: 1,
   },
 

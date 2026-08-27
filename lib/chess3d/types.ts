@@ -133,6 +133,7 @@ export interface AnimationConfig {
   checkShakeIntensity: number;   // 0-1
   checkmateEffectDuration: number; // ms
   enableParticles: boolean;
+  enableMoveAnimations: boolean;
   particleIntensity: number;     // 0-1
   enableShadowAnimation: boolean;
   easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring" | "bounce";
@@ -462,7 +463,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, Partial<ChessBoard3DConfig>>
       possibleMoveColor: "rgba(0, 0, 0, 0.3)",
       possibleMoveOpacity: 0.5,
       captureMoveIndicator: "ring",
-      captureMoveColor: "#FF6B6B",
+      captureMoveColor: "#E05C5C",
       lastMoveHighlight: true,
       lastMoveColor: "#FFD700",
       lastMoveOpacity: 0.3,
@@ -494,7 +495,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, Partial<ChessBoard3DConfig>>
       possibleMoveColor: "rgba(0, 255, 0, 0.4)",
       possibleMoveOpacity: 0.6,
       captureMoveIndicator: "pulse",
-      captureMoveColor: "#FF6B6B",
+      captureMoveColor: "#E05C5C",
       lastMoveHighlight: true,
       lastMoveColor: "#FFD700",
       lastMoveOpacity: 0.4,
@@ -526,7 +527,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, Partial<ChessBoard3DConfig>>
       possibleMoveColor: "rgba(0, 255, 0, 0.5)",
       possibleMoveOpacity: 0.7,
       captureMoveIndicator: "target",
-      captureMoveColor: "#FF6B6B",
+      captureMoveColor: "#E05C5C",
       lastMoveHighlight: true,
       lastMoveColor: "#FFD700",
       lastMoveOpacity: 0.5,
@@ -558,7 +559,7 @@ export const QUALITY_PRESETS: Record<QualityPreset, Partial<ChessBoard3DConfig>>
       possibleMoveColor: "rgba(0, 255, 0, 0.6)",
       possibleMoveOpacity: 0.8,
       captureMoveIndicator: "target",
-      captureMoveColor: "#FF6B6B",
+      captureMoveColor: "#E05C5C",
       lastMoveHighlight: true,
       lastMoveColor: "#FFD700",
       lastMoveOpacity: 0.6,

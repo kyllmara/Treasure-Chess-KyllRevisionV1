@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   settingValueDisplay: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   settingDivider: {
     height: 1,
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     marginBottom: 16,
     textAlign: "center",
   },

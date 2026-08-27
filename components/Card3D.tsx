@@ -24,7 +24,7 @@ import { useSoundAndHaptics } from "@/hooks/useSoundAndHaptics";
 
 export const CardGradients = {
   // Primary teal/cyan
-  primary: ["#4ECDC4", "#2C9E96"] as [string, string],
+  primary: ["#4CAF82", "#2D8B5E"] as [string, string],
   // Secondary purple
   secondary: ["#667eea", "#764ba2"] as [string, string],
   // Gold/amber

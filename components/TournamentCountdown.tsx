@@ -91,7 +91,7 @@ export function TournamentCountdown({
         <View style={styles.inlineContainer}>
           {status === "active" ? (
             <>
-              <Play size={14} color="#4ECDC4" />
+              <Play size={14} color="#4CAF82" />
               <Text style={styles.inlineTextActive}>In Progress</Text>
             </>
           ) : status === "completed" ? (
@@ -114,10 +114,10 @@ export function TournamentCountdown({
         <LinearGradient
           colors={
             status === "active"
-              ? ["#4ECDC4", "#44A08D"]
+              ? ["#4CAF82", "#3A9F6E"]
               : status === "completed"
               ? ["#666", "#444"]
-              : ["#FFB347", "#FF8E8E"]
+              : ["#F5C400", "#E88080"]
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   urgentText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   inlineTextActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 13,
     fontWeight: "600",
   },

@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   acceptButton: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
   },
   acceptButtonText: {
     color: "#0F0F1E",

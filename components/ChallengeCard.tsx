@@ -85,11 +85,11 @@ function getTimeControlCategory(
 function getTimeControlGradient(category: string): [string, string] {
   switch (category) {
     case "bullet":
-      return ["#FF6B6B", "#FF8E8E"];
+      return ["#E05C5C", "#E88080"];
     case "blitz":
       return ["#FFB347", "#FFCC80"];
     case "rapid":
-      return ["#4ECDC4", "#7EDDD6"];
+      return ["#4CAF82", "#7EDDD6"];
     case "classical":
       return ["#6C5CE7", "#A29BFE"];
     default:
@@ -192,7 +192,7 @@ export function ChallengeCard({
 
           {/* Status Icon */}
           {challenge.is_public ? (
-            <Globe size={14} color="#4ECDC4" />
+            <Globe size={14} color="#4CAF82" />
           ) : (
             <Lock size={14} color="#A0A0A0" />
           )}
@@ -253,7 +253,7 @@ export function ChallengeCard({
             <View style={styles.waitingSettingItem}>
               {challenge.is_rated ? (
                 <>
-                  <Trophy size={20} color="#4ECDC4" />
+                  <Trophy size={20} color="#4CAF82" />
                   <Text style={styles.waitingSettingValue}>Rated</Text>
                 </>
               ) : (
@@ -267,7 +267,7 @@ export function ChallengeCard({
             <View style={styles.waitingSettingItem}>
               {challenge.is_public ? (
                 <>
-                  <Globe size={20} color="#4ECDC4" />
+                  <Globe size={20} color="#4CAF82" />
                   <Text style={styles.waitingSettingValue}>Public</Text>
                 </>
               ) : (
@@ -299,7 +299,7 @@ export function ChallengeCard({
               onPress={onCancel}
               disabled={isCancelling}
             >
-              <X size={18} color="#FF6B6B" />
+              <X size={18} color="#E05C5C" />
               <Text style={styles.cancelBtnText}>
                 {isCancelling ? "Cancelling..." : "Cancel Challenge"}
               </Text>
@@ -340,13 +340,13 @@ export function ChallengeCard({
           <View style={styles.statusBadges}>
             {challenge.is_rated && (
               <View style={styles.ratedBadge}>
-                <Trophy size={12} color="#4ECDC4" />
+                <Trophy size={12} color="#4CAF82" />
                 <Text style={styles.ratedText}>Rated</Text>
               </View>
             )}
 
             {challenge.is_public ? (
-              <Globe size={16} color="#4ECDC4" style={styles.visibilityIcon} />
+              <Globe size={16} color="#4CAF82" style={styles.visibilityIcon} />
             ) : (
               <Lock size={16} color="#FFD700" style={styles.visibilityIcon} />
             )}
@@ -396,7 +396,7 @@ export function ChallengeCard({
                 onPress={onCancel}
                 disabled={isCancelling}
               >
-                <X size={16} color="#FF6B6B" />
+                <X size={16} color="#E05C5C" />
                 <Text style={styles.cancelBtnLabel}>
                   {isCancelling ? "Cancelling..." : "Cancel"}
                 </Text>
@@ -410,7 +410,7 @@ export function ChallengeCard({
                   disabled={isJoining}
                 >
                   <LinearGradient
-                    colors={["#4ECDC4", "#44A08D"]}
+                    colors={["#4CAF82", "#3A9F6E"]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.joinBtnGradient}
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   ratedText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 11,
     fontWeight: "600",
   },
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cancelBtnLabel: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   joinBtnCompact: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   cancelBtnText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
     fontWeight: "600",
   },

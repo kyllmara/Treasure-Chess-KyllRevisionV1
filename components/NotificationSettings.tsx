@@ -75,7 +75,7 @@ function SettingRow({
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: "#3E3E5E", true: "#4ECDC4" }}
+        trackColor={{ false: "#3E3E5E", true: "#4CAF82" }}
         thumbColor={value ? "#FFFFFF" : "#9CA3AF"}
         ios_backgroundColor="#3E3E5E"
         disabled={disabled}
@@ -178,7 +178,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
           onPress={handleEnableNotifications}
         >
           {notifications.pushEnabled ? (
-            <Bell size={20} color="#4ECDC4" />
+            <Bell size={20} color="#4CAF82" />
           ) : (
             <BellOff size={20} color="#666" />
           )}
@@ -209,7 +209,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
         <SettingRow
           icon={
             notifications.pushEnabled ? (
-              <Bell size={20} color="#4ECDC4" />
+              <Bell size={20} color="#4CAF82" />
             ) : (
               <BellOff size={20} color="#666" />
             )
@@ -226,7 +226,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
         <Text style={styles.sectionTitle}>Notification Types</Text>
 
         <SettingRow
-          icon={<Gamepad2 size={20} color={notificationsDisabled ? "#666" : "#4ECDC4"} />}
+          icon={<Gamepad2 size={20} color={notificationsDisabled ? "#666" : "#4CAF82"} />}
           label="Game Invites"
           description="Challenge requests from other players"
           value={notifications.notifyGameInvites}
@@ -244,7 +244,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
         />
 
         <SettingRow
-          icon={<Trophy size={20} color={notificationsDisabled ? "#666" : "#4ECDC4"} />}
+          icon={<Trophy size={20} color={notificationsDisabled ? "#666" : "#4CAF82"} />}
           label="Game Results"
           description="Win, lose, or draw notifications"
           value={notifications.notifyGameResults}
@@ -253,7 +253,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
         />
 
         <SettingRow
-          icon={<Wallet size={20} color={notificationsDisabled ? "#666" : "#4ECDC4"} />}
+          icon={<Wallet size={20} color={notificationsDisabled ? "#666" : "#4CAF82"} />}
           label="Wallet Activity"
           description="Deposits and withdrawals"
           value={notifications.notifyDeposits}
@@ -262,7 +262,7 @@ export function NotificationSettings({ compact = false }: NotificationSettingsPr
         />
 
         <SettingRow
-          icon={<Award size={20} color={notificationsDisabled ? "#666" : "#4ECDC4"} />}
+          icon={<Award size={20} color={notificationsDisabled ? "#666" : "#4CAF82"} />}
           label="Achievements"
           description="When you unlock achievements"
           value={notifications.notifyAchievements}
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     textAlign: "center",
   },
 

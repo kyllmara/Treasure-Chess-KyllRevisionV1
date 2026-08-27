@@ -69,7 +69,7 @@ export function ProfileCard({
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <View style={styles.statIcon}>
-            <Target size={18} color="#4ECDC4" />
+            <Target size={18} color="#4CAF82" />
           </View>
           <Text style={styles.statValue}>{totalGames}</Text>
           <Text style={styles.statLabel}>Games</Text>

@@ -62,7 +62,8 @@ import type {
 const AUTH_STORAGE_KEY = "@treasure_chess_auth_state";
 const GUEST_MODE_KEY = "@treasure_chess_guest_mode";
 
-// OAuth redirect URL must match Supabase dashboard → Authentication → URL Configuration
+// Deep-link scheme the app listens on — Supabase redirects here after OAuth completes,
+// openAuthSessionAsync intercepts it and returns the tokens in the URL fragment.
 const OAUTH_REDIRECT_URL = "treasurechess://login";
 
 // ============================================================================
@@ -88,6 +89,35 @@ function generateUsername(email: string | null): string {
 // ============================================================================
 // Guest Profile
 // ============================================================================
+
+// TEMPORARY TEST BYPASS — remove before production, gated by EXPO_PUBLIC_SKIP_AUTH
+// Provides a realistic stub session so every screen renders without real auth.
+const TEST_STUB_PROFILE: Profile = {
+  id: "00000000-0000-0000-0000-000000000001",
+  auth_user_id: "00000000-0000-0000-0000-000000000001",
+  username: "TestPlayer",
+  email: "test@treasurechess.dev",
+  avatar_index: 0,
+  embedded_wallet_address: "0x0000000000000000000000000000000000000001",
+  smart_wallet_address: null,
+  external_wallet_address: null,
+  active_wallet_type: "embedded",
+  elo_rating: 1200,
+  games_played: 25,
+  games_won: 15,
+  games_lost: 8,
+  games_drawn: 2,
+  current_streak: 3,
+  longest_streak: 7,
+  sound_enabled: true,
+  music_enabled: true,
+  haptic_enabled: true,
+  notifications_enabled: false,
+  push_token: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  last_seen_at: new Date().toISOString(),
+};
 
 const GUEST_PROFILE: Profile = {
   id: "guest_user",
@@ -394,6 +424,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // --------------------------------------------------------------------------
 
   useEffect(() => {
+    // TEMPORARY TEST BYPASS — remove before production, gated by EXPO_PUBLIC_SKIP_AUTH
+    if (process.env.EXPO_PUBLIC_SKIP_AUTH === "true") {
+      isInitialized.current = true;
+      // Overwrite any stale persisted real-user profile so stores that read from
+      // userStore (e.g. wallet.tsx) don't leak the previous real user's ID.
+      syncProfileToStore(TEST_STUB_PROFILE);
+      setState({
+        mode: "authenticated",
+        isMagicReady: true,
+        isLoading: false,
+        isAuthenticated: true,
+        isGuest: false,
+        user: { id: "00000000-0000-0000-0000-000000000001", email: "test@treasurechess.dev" } as any,
+        profile: TEST_STUB_PROFILE,
+        magicUser: null,
+        error: null,
+        otpState: "idle",
+        otpEmail: null,
+      });
+      return;
+    }
+
     if (isInitialized.current) return;
     isInitialized.current = true;
 

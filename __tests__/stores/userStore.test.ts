@@ -8,131 +8,23 @@
  * These tests focus on pure logic validation.
  */
 
-// Mock avatar constants matching the actual implementation
-const DRAGON_EGG_IMAGE = "https://example.com/dragon_egg.png";
-const TEENAGE_DRAGON_AVATARS = ["https://example.com/teenage_1.png", "https://example.com/teenage_2.png"];
-const NON_FIERCE_ADULT_AVATARS = ["https://example.com/adult_1.png", "https://example.com/adult_2.png"];
-const FIERCE_ADULT_AVATARS = ["https://example.com/fierce_1.png", "https://example.com/fierce_2.png"];
-
-const getAvailableAvatars = (wins: number, unlockedAvatars: string[]): string[] => {
-  const available = [DRAGON_EGG_IMAGE];
-
-  // Add unlocked teenage dragons (10+ wins)
-  if (wins >= 10) {
-    unlockedAvatars.forEach(avatar => {
-      if (TEENAGE_DRAGON_AVATARS.includes(avatar)) {
-        available.push(avatar);
-      }
-    });
-  }
-
-  // Add unlocked non-fierce adults (75+ wins)
-  if (wins >= 75) {
-    unlockedAvatars.forEach(avatar => {
-      if (NON_FIERCE_ADULT_AVATARS.includes(avatar)) {
-        available.push(avatar);
-      }
-    });
-  }
-
-  // Add unlocked fierce adults (200+ wins)
-  if (wins >= 200) {
-    unlockedAvatars.forEach(avatar => {
-      if (FIERCE_ADULT_AVATARS.includes(avatar)) {
-        available.push(avatar);
-      }
-    });
-  }
-
-  return available;
-};
-
 describe("Avatar System", () => {
-  describe("Dragon Avatar Constants", () => {
-    it("should have dragon egg image defined", () => {
-      expect(DRAGON_EGG_IMAGE).toBeDefined();
-      expect(typeof DRAGON_EGG_IMAGE).toBe("string");
+  describe("Profile Picture", () => {
+    it("should default to null for new users", () => {
+      const defaultProfilePicture: string | null = null;
+      expect(defaultProfilePicture).toBeNull();
     });
 
-    it("should have teenage dragon avatars defined", () => {
-      expect(TEENAGE_DRAGON_AVATARS).toBeDefined();
-      expect(Array.isArray(TEENAGE_DRAGON_AVATARS)).toBe(true);
-      expect(TEENAGE_DRAGON_AVATARS.length).toBeGreaterThan(0);
+    it("should accept any valid URL string as avatar", () => {
+      const avatarUrl = "https://example.com/avatar.png";
+      expect(typeof avatarUrl).toBe("string");
+      expect(avatarUrl.startsWith("https://")).toBe(true);
     });
 
-    it("should have non-fierce adult avatars defined", () => {
-      expect(NON_FIERCE_ADULT_AVATARS).toBeDefined();
-      expect(Array.isArray(NON_FIERCE_ADULT_AVATARS)).toBe(true);
-      expect(NON_FIERCE_ADULT_AVATARS.length).toBeGreaterThan(0);
-    });
-
-    it("should have fierce adult avatars defined", () => {
-      expect(FIERCE_ADULT_AVATARS).toBeDefined();
-      expect(Array.isArray(FIERCE_ADULT_AVATARS)).toBe(true);
-      expect(FIERCE_ADULT_AVATARS.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe("Avatar Unlock Thresholds", () => {
-    const TEENAGE_DRAGON_THRESHOLD = 10;
-    const NON_FIERCE_ADULT_THRESHOLD = 75;
-    const FIERCE_ADULT_THRESHOLD = 200;
-
-    it("should unlock teenage dragon at 10 wins", () => {
-      const wins = 10;
-      const canUnlockTeenage = wins >= TEENAGE_DRAGON_THRESHOLD;
-      expect(canUnlockTeenage).toBe(true);
-    });
-
-    it("should not unlock teenage dragon before 10 wins", () => {
-      const wins = 9;
-      const canUnlockTeenage = wins >= TEENAGE_DRAGON_THRESHOLD;
-      expect(canUnlockTeenage).toBe(false);
-    });
-
-    it("should unlock non-fierce adult at 75 wins", () => {
-      const wins = 75;
-      const canUnlockNonFierce = wins >= NON_FIERCE_ADULT_THRESHOLD;
-      expect(canUnlockNonFierce).toBe(true);
-    });
-
-    it("should unlock fierce adult at 200 wins", () => {
-      const wins = 200;
-      const canUnlockFierce = wins >= FIERCE_ADULT_THRESHOLD;
-      expect(canUnlockFierce).toBe(true);
-    });
-  });
-
-  describe("getAvailableAvatars", () => {
-    it("should return only dragon egg for new players", () => {
-      const avatars = getAvailableAvatars(0, []);
-      expect(avatars).toContain(DRAGON_EGG_IMAGE);
-      expect(avatars.length).toBe(1);
-    });
-
-    it("should include teenage dragons after 10 wins", () => {
-      const avatars = getAvailableAvatars(15, [TEENAGE_DRAGON_AVATARS[0]]);
-      expect(avatars).toContain(DRAGON_EGG_IMAGE);
-      expect(avatars).toContain(TEENAGE_DRAGON_AVATARS[0]);
-    });
-
-    it("should include non-fierce adults after 75 wins", () => {
-      const avatars = getAvailableAvatars(80, [
-        TEENAGE_DRAGON_AVATARS[0],
-        NON_FIERCE_ADULT_AVATARS[0],
-      ]);
-      expect(avatars).toContain(DRAGON_EGG_IMAGE);
-      expect(avatars).toContain(NON_FIERCE_ADULT_AVATARS[0]);
-    });
-
-    it("should include fierce adults after 200 wins", () => {
-      const avatars = getAvailableAvatars(250, [
-        TEENAGE_DRAGON_AVATARS[0],
-        NON_FIERCE_ADULT_AVATARS[0],
-        FIERCE_ADULT_AVATARS[0],
-      ]);
-      expect(avatars).toContain(DRAGON_EGG_IMAGE);
-      expect(avatars).toContain(FIERCE_ADULT_AVATARS[0]);
+    it("should allow removing avatar by setting null", () => {
+      let profilePicture: string | null = "https://example.com/avatar.png";
+      profilePicture = null;
+      expect(profilePicture).toBeNull();
     });
   });
 });

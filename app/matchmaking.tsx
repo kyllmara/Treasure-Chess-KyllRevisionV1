@@ -59,7 +59,7 @@ import {
 const TCT_TO_USD = 0.04;
 
 const STAKE_OPTIONS: { tier: StakeTier; label: string; color: string }[] = [
-  { tier: STAKE_TIERS.FREE, label: "Free", color: "#4ECDC4" },
+  { tier: STAKE_TIERS.FREE, label: "Free", color: "#4CAF82" },
   { tier: STAKE_TIERS.MICRO, label: "$5", color: "#FFD700" },
   { tier: STAKE_TIERS.LOW, label: "$10", color: "#FF9800" },
   { tier: STAKE_TIERS.MEDIUM, label: "$25", color: "#FF5722" },

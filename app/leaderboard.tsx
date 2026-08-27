@@ -70,7 +70,7 @@ const TIME_PERIOD_OPTIONS: FilterOption<TimePeriod>[] = [
 ];
 
 const SORT_OPTIONS: FilterOption<SortBy>[] = [
-  { value: "elo", label: "ELO", icon: <TrendingUp size={14} color="#4ECDC4" /> },
+  { value: "elo", label: "ELO", icon: <TrendingUp size={14} color="#4CAF82" /> },
   { value: "earnings", label: "Earnings", icon: <Coins size={14} color="#FFD700" /> },
   { value: "wins", label: "Wins", icon: <Target size={14} color="#4ADE80" /> },
 ];
@@ -149,7 +149,7 @@ function UserRankBanner({ rank, totalPlayers, player }: UserRankBannerProps) {
   return (
     <View style={styles.userRankBanner}>
       <View style={styles.userRankLeft}>
-        <Medal size={20} color="#4ECDC4" />
+        <Medal size={20} color="#4CAF82" />
         <Text style={styles.userRankLabel}>Your Rank</Text>
       </View>
       <View style={styles.userRankRight}>
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   userRankLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   userRankRight: {
     alignItems: "flex-end",
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   userRankNumber: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   userRankTotal: {
     fontSize: 11,

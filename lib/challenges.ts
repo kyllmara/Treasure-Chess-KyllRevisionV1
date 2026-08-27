@@ -12,6 +12,7 @@
  */
 
 import { supabase } from "./supabase";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 // ============================================================================
@@ -209,6 +210,7 @@ export class ChallengeService {
   private callbacks: ChallengeCallbacks;
   private subscriptionChannel: RealtimeChannel | null = null;
   private publicChallengeChannel: RealtimeChannel | null = null;
+  private _instanceId: string = Math.random().toString(36).slice(2, 10);
 
   constructor(userId: string, callbacks: ChallengeCallbacks = {}) {
     this.userId = userId;
@@ -1166,8 +1168,8 @@ export class ChallengeService {
    * Get unread notification count.
    */
   async getUnreadNotificationCount(): Promise<number> {
-    // Skip if userId is not a valid UUID (e.g., "guest_user")
-    if (!this.isValidUUID()) {
+    // Skip for guest IDs and dev bypass (stub UUID has no DB rows)
+    if (DEV_BYPASS_AUTH || !this.isValidUUID()) {
       return 0;
     }
 
@@ -1410,7 +1412,7 @@ export class ChallengeService {
     }
 
     this.subscriptionChannel = supabase
-      .channel(`challenges:${this.userId}`)
+      .channel(`challenges:${this.userId}:${this._instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -1449,7 +1451,7 @@ export class ChallengeService {
     }
 
     this.publicChallengeChannel = supabase
-      .channel("public-challenges")
+      .channel(`public-challenges:${this._instanceId}`)
       .on(
         "postgres_changes",
         {

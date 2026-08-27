@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     textDecorationLine: "underline",
   },
 });

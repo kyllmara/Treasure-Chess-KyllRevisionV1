@@ -39,6 +39,9 @@ import {
   type ChallengeObjectiveType,
 } from "@/types/houseChallenge";
 import ConfettiCannon from "react-native-confetti-cannon";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useMoveAnimations } from "@/hooks/useMoveAnimations";
+import { BoardAnimationOverlay } from "@/components/BoardAnimationOverlay";
 
 const { width } = Dimensions.get("window");
 const BOARD_SIZE = Math.min(width - 40, 360);
@@ -157,6 +160,19 @@ export default function HouseChallengeGameScreen() {
   // Settings
   const boardTheme = gameSettings?.boardTheme || "purple";
   const pieceStyle = gameSettings?.pieceStyle || "unity";
+
+  const {
+    legalGlowAlpha, startLegalGlow, stopLegalGlow,
+    glideState, triggerGlide, handleGlideComplete,
+    illegalSquare, illegalAlpha, illegalShakeX, triggerIllegalMove,
+    captureSquare, handleCaptureComplete, enabled: animEnabled,
+  } = useMoveAnimations();
+
+  const legalGlowStyle = useAnimatedStyle(() => ({ opacity: legalGlowAlpha.value }));
+  const illegalStyle = useAnimatedStyle(() => ({
+    opacity: illegalAlpha.value,
+    transform: [{ translateX: illegalShakeX.value }],
+  }));
 
   // Load challenge and check entry payment status
   useEffect(() => {
@@ -519,10 +535,12 @@ export default function HouseChallengeGameScreen() {
           setSelectedSquare(square);
           const moves = game.moves({ square, verbose: true });
           setPossibleMoves(moves.map((m) => m.to));
+          startLegalGlow();
         }
       } else {
         try {
           const pieceMoving = game.get(selectedSquare);
+          const capturePiece = game.get(square);
 
           // Check for pawn promotion
           const isPawnPromotion =
@@ -531,6 +549,7 @@ export default function HouseChallengeGameScreen() {
               (pieceMoving.color === "b" && square[1] === "1"));
 
           if (isPawnPromotion && !user.gameSettings?.autoQueen) {
+            stopLegalGlow();
             setPendingPromotion({ from: selectedSquare, to: square });
             return;
           }
@@ -542,6 +561,8 @@ export default function HouseChallengeGameScreen() {
           });
 
           if (moveObj) {
+            if (pieceMoving) triggerGlide(selectedSquare, square, pieceMoving, SQUARE_SIZE, isFlipped, capturePiece ? square : undefined);
+            stopLegalGlow();
             playMove({
               isCapture: !!moveObj.captured,
               isCheck: game.inCheck(),
@@ -579,12 +600,15 @@ export default function HouseChallengeGameScreen() {
             setTimeout(() => makeAIMove(), 500);
           }
         } catch (error) {
+          triggerIllegalMove(selectedSquare);
+          stopLegalGlow();
           playIllegalMove();
           const piece = game.get(square);
           if (piece && piece.color === playerColor) {
             setSelectedSquare(square);
             const moves = game.moves({ square, verbose: true });
             setPossibleMoves(moves.map((m) => m.to));
+            startLegalGlow();
           } else {
             setSelectedSquare(null);
             setPossibleMoves([]);
@@ -605,6 +629,10 @@ export default function HouseChallengeGameScreen() {
       makeAIMove,
       handleGameEnd,
       user.gameSettings?.autoQueen,
+      triggerGlide,
+      triggerIllegalMove,
+      startLegalGlow,
+      stopLegalGlow,
     ]
   );
 
@@ -729,15 +757,26 @@ export default function HouseChallengeGameScreen() {
                   onPress={() => handleSquarePress(rowIndex, colIndex)}
                   activeOpacity={0.8}
                 >
-                  {isPossibleMove && (
-                    <View
-                      style={[
-                        styles.possibleMoveDot,
-                        piece && styles.possibleMoveCapture,
-                      ]}
-                    />
+                  {square === illegalSquare && (
+                    <Animated.View style={[StyleSheet.absoluteFillObject, styles.illegalOverlay, illegalStyle]} />
                   )}
-                  {piece && (
+                  {isPossibleMove && (
+                    animEnabled ? (
+                      <Animated.View style={[
+                        styles.possibleMoveDot,
+                        piece ? styles.captureIndicatorGlow : styles.moveIndicatorGlow,
+                        legalGlowStyle,
+                      ]} />
+                    ) : (
+                      <View
+                        style={[
+                          styles.possibleMoveDot,
+                          piece && styles.possibleMoveCapture,
+                        ]}
+                      />
+                    )
+                  )}
+                  {piece && !(glideState && (square === glideState.from || square === glideState.to)) && (
                     <ChessPieceComponent
                       type={piece.type}
                       color={piece.color}
@@ -749,6 +788,16 @@ export default function HouseChallengeGameScreen() {
               );
             })
           )}
+          <BoardAnimationOverlay
+            boardSize={BOARD_SIZE}
+            squareSize={SQUARE_SIZE}
+            isFlipped={isFlipped}
+            glideState={glideState}
+            pieceStyle={pieceStyle}
+            captureSquare={captureSquare}
+            onGlideComplete={handleGlideComplete}
+            onCaptureComplete={handleCaptureComplete}
+          />
         </View>
       </View>
     );
@@ -1295,6 +1344,24 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderWidth: 3,
     borderColor: "rgba(255, 0, 0, 0.5)",
+  },
+  illegalOverlay: {
+    backgroundColor: "rgba(255, 30, 30, 0.6)",
+    zIndex: 5,
+  },
+  moveIndicatorGlow: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "rgba(0, 220, 80, 0.75)",
+  },
+  captureIndicatorGlow: {
+    width: SQUARE_SIZE - 4,
+    height: SQUARE_SIZE - 4,
+    borderRadius: SQUARE_SIZE / 2,
+    backgroundColor: "transparent",
+    borderWidth: 3,
+    borderColor: "rgba(0, 220, 80, 0.75)",
   },
 
   // Result state

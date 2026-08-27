@@ -130,7 +130,7 @@ export function ActiveGameBanner() {
       activeOpacity={0.8}
     >
       <View style={styles.bannerContent}>
-        <Play size={18} color={isMyTurn ? "#FFF" : "#4ECDC4"} />
+        <Play size={18} color={isMyTurn ? "#FFF" : "#4CAF82"} />
         <View style={styles.textContainer}>
           <Text style={[styles.bannerTitle, isMyTurn && styles.bannerTitleMyTurn]}>
             {isMyTurn ? "Your Turn!" : "Game in Progress"}
@@ -149,9 +149,9 @@ export function ActiveGameBanner() {
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: "rgba(78, 205, 196, 0.15)",
+    backgroundColor: "rgba(76, 175, 130, 0.15)",
     borderBottomWidth: 1,
-    borderBottomColor: "#4ECDC4",
+    borderBottomColor: "#4CAF82",
     paddingVertical: 12,
     paddingHorizontal: 16,
     flexDirection: "row",
@@ -174,21 +174,21 @@ const styles = StyleSheet.create({
   bannerTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   bannerTitleMyTurn: {
     color: "#FFD700",
   },
   bannerSubtitle: {
     fontSize: 12,
-    color: "rgba(78, 205, 196, 0.8)",
+    color: "rgba(76, 175, 130, 0.8)",
     marginTop: 2,
   },
   bannerSubtitleMyTurn: {
     color: "rgba(255, 215, 0, 0.8)",
   },
   rejoinButton: {
-    backgroundColor: "rgba(78, 205, 196, 0.3)",
+    backgroundColor: "rgba(76, 175, 130, 0.3)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   rejoinText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   rejoinTextMyTurn: {
     color: "#FFD700",

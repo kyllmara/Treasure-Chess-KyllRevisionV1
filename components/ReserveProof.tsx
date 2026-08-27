@@ -82,7 +82,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
   if (isLoading) {
     return (
       <View style={[styles.container, compact && styles.containerCompact]}>
-        <ActivityIndicator size="small" color="#4ECDC4" />
+        <ActivityIndicator size="small" color="#4CAF82" />
         <Text style={styles.loadingText}>Verifying reserves...</Text>
       </View>
     );
@@ -91,7 +91,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
   if (error || !status) {
     return (
       <View style={[styles.container, styles.containerError, compact && styles.containerCompact]}>
-        <AlertTriangle size={20} color="#FF6B6B" />
+        <AlertTriangle size={20} color="#E05C5C" />
         <Text style={styles.errorText}>{error || "Unable to verify reserves"}</Text>
         <TouchableOpacity onPress={fetchStatus} style={styles.retryButton}>
           <RefreshCw size={14} color="#A0A0A0" />
@@ -115,7 +115,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
         onPress={handleViewOnExplorer}
       >
         {isFullyBacked ? (
-          <CheckCircle size={16} color="#4ECDC4" />
+          <CheckCircle size={16} color="#4CAF82" />
         ) : (
           <AlertTriangle size={16} color="#FFD700" />
         )}
@@ -135,7 +135,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Shield size={24} color={isFullyBacked ? "#4ECDC4" : "#FFD700"} />
+          <Shield size={24} color={isFullyBacked ? "#4CAF82" : "#FFD700"} />
           <View>
             <Text style={styles.title}>Proof of Reserves</Text>
             <Text style={styles.subtitle}>
@@ -151,7 +151,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
       {/* Status Badge */}
       <View style={[styles.statusBadge, isFullyBacked ? styles.statusBadgeHealthy : styles.statusBadgeWarning]}>
         {isFullyBacked ? (
-          <CheckCircle size={18} color="#4ECDC4" />
+          <CheckCircle size={18} color="#4CAF82" />
         ) : (
           <AlertTriangle size={18} color="#FFD700" />
         )}
@@ -173,7 +173,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
 
         <View style={styles.statItem}>
           <View style={styles.statIcon}>
-            <Coins size={16} color="#4ECDC4" />
+            <Coins size={16} color="#4CAF82" />
           </View>
           <Text style={styles.statLabel}>TCT Issued</Text>
           <Text style={styles.statValue}>{status.totalTctIssued.toLocaleString()}</Text>
@@ -197,7 +197,7 @@ export function ReserveProof({ compact = false, onStatusFetched }: ReserveProofP
           <Text style={styles.vaultAddressText}>
             {status.vaultAddress.slice(0, 6)}...{status.vaultAddress.slice(-4)}
           </Text>
-          <ExternalLink size={14} color="#4ECDC4" />
+          <ExternalLink size={14} color="#4CAF82" />
         </View>
       </TouchableOpacity>
 
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   compactTextHealthy: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   compactTextWarning: {
     color: "#FFD700",
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   retryButton: {
     flexDirection: "row",
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   statusTextHealthy: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   statusTextWarning: {
     color: "#FFD700",
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   vaultAddressText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontFamily: "monospace",
   },
 

@@ -33,6 +33,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
 import { useAuth } from "@/hooks/useAuth";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 
 // Required on Android: signals to WebBrowser.openAuthSessionAsync that the
 // OAuth redirect has been received, allowing the promise to resolve with the URL.
@@ -148,6 +149,11 @@ export default function LoginScreen() {
     WebBrowser.maybeCompleteAuthSession();
   }, []);
 
+  // ⚠️ TESTING ONLY — skip login screen entirely when bypass flag is set
+  useEffect(() => {
+    if (DEV_BYPASS_AUTH) router.replace("/");
+  }, []);
+
   // Handle resend cooldown timer
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -204,6 +210,7 @@ export default function LoginScreen() {
   };
 
   const handleVerifyOTP = async () => {
+    if (DEV_BYPASS_AUTH) { router.replace("/"); return; } // ⚠️ TESTING ONLY
     if (otpCode.length !== 6) {
       Alert.alert("Invalid Code", "Please enter the 6-digit code");
       return;
@@ -332,7 +339,7 @@ export default function LoginScreen() {
                       onPress={handleBackToEmail}
                       disabled={isButtonDisabled}
                     >
-                      <Ionicons name="arrow-back" size={20} color="#4ECDC4" />
+                      <Ionicons name="arrow-back" size={20} color="#4CAF82" />
                       <Text style={styles.backToEmailText}>Back</Text>
                     </TouchableOpacity>
 
@@ -649,7 +656,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   backToEmailText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
     fontWeight: "500",
   },
@@ -700,7 +707,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 215, 0, 0.1)",
   },
   otpBoxFocused: {
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   otpDigit: {
     fontSize: 24,
@@ -718,7 +725,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   resendLink: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -62,7 +62,7 @@ function SettingRow({ icon, label, description, value, onToggle }: SettingRowPro
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: "#3E3E5E", true: "#4ECDC4" }}
+        trackColor={{ false: "#3E3E5E", true: "#4CAF82" }}
         thumbColor={value ? "#FFFFFF" : "#9CA3AF"}
         ios_backgroundColor="#3E3E5E"
       />
@@ -91,7 +91,7 @@ function VolumeSlider({ label, value, onChange, disabled }: VolumeSliderProps) {
           minimumValue={0}
           maximumValue={1}
           step={0.1}
-          minimumTrackTintColor={disabled ? "#666" : "#4ECDC4"}
+          minimumTrackTintColor={disabled ? "#666" : "#4CAF82"}
           maximumTrackTintColor="#3E3E5E"
           thumbTintColor={disabled ? "#666" : "#FFFFFF"}
           disabled={disabled}
@@ -191,7 +191,7 @@ export function SoundSettings({
           onPress={handleSoundToggle}
         >
           {audio.soundEnabled ? (
-            <Volume2 size={20} color="#4ECDC4" />
+            <Volume2 size={20} color="#4CAF82" />
           ) : (
             <VolumeX size={20} color="#666" />
           )}
@@ -201,14 +201,14 @@ export function SoundSettings({
           style={[styles.compactButton, audio.musicEnabled && styles.compactButtonActive]}
           onPress={handleMusicToggle}
         >
-          <Music size={20} color={audio.musicEnabled ? "#4ECDC4" : "#666"} />
+          <Music size={20} color={audio.musicEnabled ? "#4CAF82" : "#666"} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.compactButton, haptics.hapticEnabled && styles.compactButtonActive]}
           onPress={handleHapticToggle}
         >
-          <Vibrate size={20} color={haptics.hapticEnabled ? "#4ECDC4" : "#666"} />
+          <Vibrate size={20} color={haptics.hapticEnabled ? "#4CAF82" : "#666"} />
         </TouchableOpacity>
       </View>
     );
@@ -222,7 +222,7 @@ export function SoundSettings({
           <Text style={styles.sectionTitle}>Audio</Text>
 
           <SettingRow
-            icon={audio.soundEnabled ? <Volume2 size={20} color="#4ECDC4" /> : <VolumeX size={20} color="#666" />}
+            icon={audio.soundEnabled ? <Volume2 size={20} color="#4CAF82" /> : <VolumeX size={20} color="#666" />}
             label="Sound Effects"
             description="Move, capture, and game sounds"
             value={audio.soundEnabled}
@@ -230,7 +230,7 @@ export function SoundSettings({
           />
 
           <SettingRow
-            icon={<Music size={20} color={audio.musicEnabled ? "#4ECDC4" : "#666"} />}
+            icon={<Music size={20} color={audio.musicEnabled ? "#4CAF82" : "#666"} />}
             label="Background Music"
             description="Ambient music during games"
             value={audio.musicEnabled}
@@ -268,7 +268,7 @@ export function SoundSettings({
           <Text style={styles.sectionTitle}>Haptics</Text>
 
           <SettingRow
-            icon={<Vibrate size={20} color={haptics.hapticEnabled ? "#4ECDC4" : "#666"} />}
+            icon={<Vibrate size={20} color={haptics.hapticEnabled ? "#4CAF82" : "#666"} />}
             label="Haptic Feedback"
             description="Vibration on actions"
             value={haptics.hapticEnabled}
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontSize: 13,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   sliderValueDisabled: {
     color: "#666",

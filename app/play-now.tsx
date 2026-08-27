@@ -395,7 +395,7 @@ export default function PlayNowScreen() {
       {/* Game Info */}
       <View style={styles.gameInfoSection}>
         <View style={styles.gameInfoItem}>
-          <Clock size={20} color="#4ECDC4" />
+          <Clock size={20} color="#4CAF82" />
           <Text style={styles.gameInfoText}>5+3 Blitz</Text>
         </View>
         <Text style={styles.gameInfoSubtext}>
@@ -456,13 +456,13 @@ export default function PlayNowScreen() {
       {/* Info Section */}
       <View style={styles.infoSection}>
         <View style={styles.infoItem}>
-          <Zap size={16} color="#4ECDC4" />
+          <Zap size={16} color="#4CAF82" />
           <Text style={styles.infoText}>
             Matched by ELO rating for fair games
           </Text>
         </View>
         <View style={styles.infoItem}>
-          <Users size={16} color="#4ECDC4" />
+          <Users size={16} color="#4CAF82" />
           <Text style={styles.infoText}>
             Players online get notified when you search
           </Text>
@@ -504,7 +504,7 @@ export default function PlayNowScreen() {
       {waitingPlayers.length > 0 && (
         <View style={styles.lobbySection}>
           <View style={styles.lobbySectionHeader}>
-            <Users size={18} color="#4ECDC4" />
+            <Users size={18} color="#4CAF82" />
             <Text style={styles.lobbySectionTitle}>Players Waiting</Text>
             <View style={styles.lobbyCountBadge}>
               <Text style={styles.lobbyCountText}>{waitingPlayers.length}</Text>
@@ -530,7 +530,7 @@ export default function PlayNowScreen() {
                       </Text>
                     </View>
                     <View style={styles.lobbyStatChip}>
-                      <Clock size={12} color="#4ECDC4" />
+                      <Clock size={12} color="#4CAF82" />
                       <Text style={styles.lobbyStatText}>
                         {Math.floor(player.time_control_seconds / 60)}+{player.increment_seconds}
                       </Text>
@@ -697,7 +697,7 @@ export default function PlayNowScreen() {
 
       {/* Cancel button */}
       <TouchableOpacity style={styles.cancelButton} onPress={handleCancelSearch}>
-        <X size={20} color="#FF6B6B" />
+        <X size={20} color="#E05C5C" />
         <Text style={styles.cancelButtonText}>Cancel Search</Text>
       </TouchableOpacity>
     </View>
@@ -716,7 +716,7 @@ export default function PlayNowScreen() {
         ]}
       >
         <LinearGradient
-          colors={["#4ECDC4", "#44A08D"]}
+          colors={["#4CAF82", "#3A9F6E"]}
           style={styles.matchedCircle}
         >
           <CheckCircle size={64} color="#FFF" />
@@ -738,7 +738,7 @@ export default function PlayNowScreen() {
         </Text>
 
         <ActivityIndicator
-          color="#4ECDC4"
+          color="#4CAF82"
           size="small"
           style={{ marginTop: 20 }}
         />
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   usdcHint: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 28,
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   insufficientFunds: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 12,
     textAlign: "center",
     marginTop: 8,
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   lobbyCountText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
     color: "#FFD700",
   },
   lobbyJoinButton: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
@@ -1072,7 +1072,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   stepLineActive: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
   },
   stepDot: {
     alignItems: "center",
@@ -1088,12 +1088,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.15)",
   },
   stepDotActive: {
-    backgroundColor: "#4ECDC4",
-    borderColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
+    borderColor: "#4CAF82",
   },
   stepDotCurrent: {
     borderColor: "#FFF",
-    shadowColor: "#4ECDC4",
+    shadowColor: "#4CAF82",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 8,
@@ -1113,7 +1113,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   stepLabelActive: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 
   // Searching styles
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 107, 107, 0.3)",
   },
   cancelButtonText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   matchedTitle: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 28,
     fontWeight: "700",
     marginBottom: 16,

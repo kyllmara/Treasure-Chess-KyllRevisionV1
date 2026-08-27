@@ -50,15 +50,15 @@ function getResultConfig(result: GameResult): {
   switch (result) {
     case "win":
       return {
-        icon: <Trophy size={16} color="#4ECDC4" />,
-        color: "#4ECDC4",
+        icon: <Trophy size={16} color="#4CAF82" />,
+        color: "#4CAF82",
         bgColor: "rgba(78, 205, 196, 0.15)",
         label: "Victory",
       };
     case "loss":
       return {
-        icon: <XCircle size={16} color="#FF6B6B" />,
-        color: "#FF6B6B",
+        icon: <XCircle size={16} color="#E05C5C" />,
+        color: "#E05C5C",
         bgColor: "rgba(255, 107, 107, 0.15)",
         label: "Defeat",
       };
@@ -102,7 +102,7 @@ function getEndReasonIcon(reason: GameEndReason): React.ReactNode {
     case "resignation":
       return <Flag size={12} color="#9B7EC8" />;
     case "timeout":
-      return <Clock size={12} color="#4ECDC4" />;
+      return <Clock size={12} color="#4CAF82" />;
     default:
       return <Swords size={12} color="#A0A0A0" />;
   }
@@ -164,7 +164,7 @@ export const GameHistoryCard = memo(function GameHistoryCard({
     }
     return {
       text: game.eloChange > 0 ? `+${game.eloChange}` : `${game.eloChange}`,
-      color: game.eloChange > 0 ? "#4ECDC4" : "#FF6B6B",
+      color: game.eloChange > 0 ? "#4CAF82" : "#E05C5C",
     };
   }, [game.eloChange]);
 
@@ -176,7 +176,7 @@ export const GameHistoryCard = memo(function GameHistoryCard({
       text: game.netEarnings > 0
         ? `+${formatTCT(game.netEarnings)}`
         : `${formatTCT(game.netEarnings)}`,
-      color: game.netEarnings > 0 ? "#FFD700" : "#FF6B6B",
+      color: game.netEarnings > 0 ? "#FFD700" : "#E05C5C",
     };
   }, [game.netEarnings]);
 
@@ -294,7 +294,7 @@ export const CompactGameCard = memo(function CompactGameCard({
           <Text
             style={[
               styles.compactElo,
-              { color: game.eloChange >= 0 ? "#4ECDC4" : "#FF6B6B" },
+              { color: game.eloChange >= 0 ? "#4CAF82" : "#E05C5C" },
             ]}
           >
             {game.eloChange >= 0 ? "+" : ""}{game.eloChange}

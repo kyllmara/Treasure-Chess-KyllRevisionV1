@@ -169,7 +169,7 @@ function AdminVaultContent() {
                   <RakeStatCard
                     label="Games Settled"
                     value={vaultBalances.totalGamesSettled}
-                    color="#4ECDC4"
+                    color="#4CAF82"
                     icon="game-controller"
                     isCurrency={false}
                   />
@@ -260,8 +260,8 @@ function AdminVaultContent() {
             <Text style={styles.sectionTitle}>Rake Flow</Text>
             <View style={styles.flowDiagram}>
               <View style={styles.flowNode}>
-                <View style={[styles.flowNodeIcon, { backgroundColor: "#4ECDC420" }]}>
-                  <Ionicons name="game-controller" size={24} color="#4ECDC4" />
+                <View style={[styles.flowNodeIcon, { backgroundColor: "#4CAF8220" }]}>
+                  <Ionicons name="game-controller" size={24} color="#4CAF82" />
                 </View>
                 <Text style={styles.flowNodeLabel}>Game Pot</Text>
               </View>
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   settingValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   settingsDivider: {
     height: 1,

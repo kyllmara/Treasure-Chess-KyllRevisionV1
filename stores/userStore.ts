@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import type { Profile, ProfileInsert, ProfileUpdate, Balance } from "@/types/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -37,6 +38,7 @@ export interface UserProfile {
   hapticEnabled: boolean;
   notificationsEnabled: boolean;
   pushToken: string | null;
+  stripeConnectAccountId: string | null;
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -165,6 +167,7 @@ function mapSupabaseToUserProfile(profile: Profile, balance?: Balance): UserProf
     hapticEnabled: profile.haptic_enabled,
     notificationsEnabled: profile.notifications_enabled,
     pushToken: profile.push_token,
+    stripeConnectAccountId: profile.stripe_connect_account_id ?? null,
     // Timestamps
     createdAt: profile.created_at,
     updatedAt: profile.updated_at,
@@ -209,8 +212,7 @@ export const useUserStore = create<UserState>()(
         }),
 
       fetchProfile: async (authUserId: string): Promise<UserProfile | null> => {
-        if (!isSupabaseConfigured) {
-          console.warn("Supabase not configured, skipping profile fetch");
+        if (DEV_BYPASS_AUTH || !isSupabaseConfigured) {
           return null;
         }
 
@@ -402,7 +404,7 @@ export const useUserStore = create<UserState>()(
       // Refresh balance from Supabase
       refreshBalance: async (): Promise<void> => {
         const { profile } = get();
-        if (!profile || !isSupabaseConfigured) {
+        if (DEV_BYPASS_AUTH || !profile || !isSupabaseConfigured) {
           return;
         }
 
@@ -414,6 +416,10 @@ export const useUserStore = create<UserState>()(
             .single();
 
           if (error) {
+            // PGRST116 = no balance row — expected for stub user in dev bypass
+            if (error.code === "PGRST116" && process.env.EXPO_PUBLIC_SKIP_AUTH === "true") {
+              return;
+            }
             throw error;
           }
 

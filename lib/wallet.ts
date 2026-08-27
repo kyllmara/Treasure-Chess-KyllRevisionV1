@@ -250,14 +250,22 @@ async function withRetry<T>(
       // Extract error message from different error types
       // Supabase PostgrestError has: message, details, hint, code
       let errorMessage = "Unknown error";
+      let errorCode: string | undefined;
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === "object" && error !== null) {
         const pgError = error as { message?: string; code?: string; details?: string; hint?: string };
         errorMessage = pgError.message || pgError.details || pgError.hint || `Error code: ${pgError.code || 'unknown'}`;
-        // Avoid JSON.stringify as it can fail with circular references
+        errorCode = pgError.code;
       } else if (typeof error === "string") {
         errorMessage = error;
+      }
+
+      // Don't retry data-level errors (PGRST116 = no rows, 42501 = RLS denied, etc.)
+      const isDataError = errorCode === "PGRST116" || errorCode === "42501" || errorCode === "42703";
+      if (isDataError) {
+        logger.warn("Wallet", `${context} non-retryable data error`, { error: errorMessage });
+        break;
       }
 
       if (attempt < maxAttempts) {
@@ -381,12 +389,13 @@ export async function fetchBalance(userId: string): Promise<WalletOperationResul
         .from("balances")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .order("updated_at", { ascending: false })
+        .limit(1);
 
       if (error) throw error;
-      if (!data) throw new Error("Balance not found");
+      if (!data || data.length === 0) throw { code: "PGRST116", message: "Balance not found" };
 
-      return data;
+      return data[0];
     }, "fetchBalance");
 
     logger.info("Wallet", "Balance fetched successfully", { userId, availableTct: (balance as Balance).available_tct });

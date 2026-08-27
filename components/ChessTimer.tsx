@@ -256,7 +256,7 @@ export const ChessTimer = memo(function ChessTimer({
     }
     if (isActive) {
       return {
-        background: "#4ECDC4",
+        background: "#4CAF82",
         text: "#0F0F1E",
       };
     }
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   activeContainer: {
-    shadowColor: "#4ECDC4",
+    shadowColor: "#4CAF82",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,

@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
   },
   filterTabActive: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   filterTabText: { fontSize: 13, color: "#A0A0A0", fontWeight: "500" },
-  filterTabTextActive: { color: "#4ECDC4" },
+  filterTabTextActive: { color: "#4CAF82" },
   countRow: { paddingHorizontal: 16, marginBottom: 8 },
   countText: { fontSize: 13, color: "#666" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },

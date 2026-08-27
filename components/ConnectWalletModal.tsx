@@ -225,7 +225,7 @@ export function ConnectWalletModal({
                   />
                   {walletInputError ? (
                     <View style={styles.errorRow}>
-                      <AlertCircle size={13} color="#FF6B6B" />
+                      <AlertCircle size={13} color="#E05C5C" />
                       <Text style={styles.inputErrorText}>{walletInputError}</Text>
                     </View>
                   ) : null}
@@ -262,7 +262,7 @@ export function ConnectWalletModal({
                   <View style={styles.addressActions}>
                     <TouchableOpacity style={styles.actionButton} onPress={handleCopyVaultAddress}>
                       <LinearGradient
-                        colors={vaultCopied ? ['#4ECDC4', '#44A08D'] : ['#FFD700', '#FFA500']}
+                        colors={vaultCopied ? ['#4CAF82', '#3A9F6E'] : ['#FFD700', '#FFA500']}
                         style={styles.actionButtonGradient}
                       >
                         {vaultCopied
@@ -443,9 +443,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  walletInputError: { borderColor: '#FF6B6B' },
+  walletInputError: { borderColor: '#E05C5C' },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  inputErrorText: { fontSize: 12, color: '#FF6B6B' },
+  inputErrorText: { fontSize: 12, color: '#E05C5C' },
   saveButton: { borderRadius: 10, overflow: 'hidden' },
   saveButtonGradient: {
     alignItems: 'center',
@@ -481,5 +481,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,107,107,0.2)',
   },
-  warningText: { fontSize: 11, color: '#FF6B6B', textAlign: 'center', lineHeight: 16 },
+  warningText: { fontSize: 11, color: '#E05C5C', textAlign: 'center', lineHeight: 16 },
 });

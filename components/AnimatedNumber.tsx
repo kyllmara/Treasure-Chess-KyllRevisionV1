@@ -140,10 +140,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   positiveChange: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   negativeChange: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
 });
 

@@ -29,7 +29,6 @@ import type { LeaderboardPlayer } from "@/lib/leaderboard";
 import type { RankChange } from "@/hooks/useLeaderboard";
 import { usePlayerAchievementBadges } from "@/hooks/useRewards";
 import { RARITY_COLORS, type AchievementRarity, type FeaturedAchievement } from "@/lib/rewards";
-import { getDragonAvatarSource } from "@/constants/dragonAssets";
 
 // ============================================================================
 // Types
@@ -315,7 +314,7 @@ export const PodiumCard = memo(function PodiumCard({
       {/* Avatar */}
       {player.profilePictureUrl ? (
         <Image
-          source={getDragonAvatarSource(player.profilePictureUrl)}
+          source={{ uri: player.profilePictureUrl }}
           style={styles.profilePicturePodium}
         />
       ) : (
@@ -336,7 +335,7 @@ export const PodiumCard = memo(function PodiumCard({
 
       {/* ELO Rating */}
       <View style={styles.eloContainer}>
-        <TrendingUp size={12} color="#4ECDC4" />
+        <TrendingUp size={12} color="#4CAF82" />
         <Text style={styles.eloText}>{player.eloRating}</Text>
       </View>
 
@@ -349,7 +348,7 @@ export const PodiumCard = memo(function PodiumCard({
       {/* Streak indicator */}
       {player.currentStreak >= 3 && (
         <View style={styles.streakBadge}>
-          <Flame size={12} color="#FF6B6B" />
+          <Flame size={12} color="#E05C5C" />
           <Text style={styles.streakText}>{player.currentStreak}</Text>
         </View>
       )}
@@ -429,7 +428,7 @@ export const LeaderboardRow = memo(function LeaderboardRow({
       {/* Avatar */}
       {player.profilePictureUrl ? (
         <Image
-          source={getDragonAvatarSource(player.profilePictureUrl)}
+          source={{ uri: player.profilePictureUrl }}
           style={styles.profilePictureRow}
         />
       ) : (
@@ -463,12 +462,12 @@ export const LeaderboardRow = memo(function LeaderboardRow({
             {player.gamesWon}W - {player.gamesLost}L
           </Text>
           <View style={styles.eloBadge}>
-            <TrendingUp size={10} color="#4ECDC4" />
+            <TrendingUp size={10} color="#4CAF82" />
             <Text style={styles.eloBadgeText}>{player.eloRating}</Text>
           </View>
           {player.currentStreak >= 3 && (
             <View style={styles.streakBadgeSmall}>
-              <Flame size={10} color="#FF6B6B" />
+              <Flame size={10} color="#E05C5C" />
               <Text style={styles.streakTextSmall}>{player.currentStreak}</Text>
             </View>
           )}
@@ -543,7 +542,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 215, 0, 0.05)",
   },
   currentUserPodium: {
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     borderTopColor: "rgba(78, 205, 196, 0.5)",
     backgroundColor: "rgba(78, 205, 196, 0.05)",
   },
@@ -571,7 +570,7 @@ const styles = StyleSheet.create({
   eloText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   podiumRecord: {
     fontSize: 11,
@@ -591,7 +590,7 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   podiumWinnings: {
     fontSize: 14,
@@ -602,7 +601,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     right: 6,
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -633,7 +632,7 @@ const styles = StyleSheet.create({
   },
   currentUserRow: {
     backgroundColor: "rgba(78, 205, 196, 0.08)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     borderTopColor: "rgba(78, 205, 196, 0.5)",
   },
   rankColumn: {
@@ -647,7 +646,7 @@ const styles = StyleSheet.create({
     color: "#A0A0A0",
   },
   currentUserRankText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   playerInfo: {
     flex: 1,
@@ -664,10 +663,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   currentUserUsername: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   youBadgeSmall: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: "#4CAF82",
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
@@ -699,7 +698,7 @@ const styles = StyleSheet.create({
   eloBadgeText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   streakBadgeSmall: {
     flexDirection: "row",
@@ -713,7 +712,7 @@ const styles = StyleSheet.create({
   streakTextSmall: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   winningsColumn: {
     alignItems: "flex-end",

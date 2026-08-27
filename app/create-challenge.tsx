@@ -67,7 +67,7 @@ const TIME_CONTROL_OPTIONS = [
   { seconds: 900, increment: 10, label: "15+10" },
 ];
 
-const GRADIENT_COLORS: [string, string] = ["#4ECDC4", "#7EDDD6"];
+const GRADIENT_COLORS: [string, string] = ["#4CAF82", "#7EDDD6"];
 
 // ============================================================================
 // Component
@@ -728,7 +728,7 @@ export default function CreateChallengeScreen() {
       {/* Time Control Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Clock size={20} color="#4ECDC4" />
+          <Clock size={20} color="#4CAF82" />
           <Text style={styles.sectionTitle}>Time Control</Text>
         </View>
 
@@ -764,7 +764,7 @@ export default function CreateChallengeScreen() {
       {/* Visibility Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Globe size={20} color="#4ECDC4" />
+          <Globe size={20} color="#4CAF82" />
           <Text style={styles.sectionTitle}>Challenge Type</Text>
         </View>
 
@@ -778,7 +778,7 @@ export default function CreateChallengeScreen() {
           >
             <Globe
               size={18}
-              color={pendingSettings.isPublic ? "#4ECDC4" : "#666"}
+              color={pendingSettings.isPublic ? "#4CAF82" : "#666"}
             />
             <View style={styles.toggleContent}>
               <Text
@@ -822,7 +822,7 @@ export default function CreateChallengeScreen() {
       {/* Color Preference Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Crown size={20} color="#4ECDC4" />
+          <Crown size={20} color="#4CAF82" />
           <Text style={styles.sectionTitle}>Play As</Text>
         </View>
 
@@ -962,7 +962,7 @@ export default function CreateChallengeScreen() {
         {/* Creator */}
         <View style={styles.playerCard}>
           <LinearGradient
-            colors={creatorReady ? ["#4ECDC4", "#45B7AA"] : ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"]}
+            colors={creatorReady ? ["#4CAF82", "#3A9F6E"] : ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"]}
             style={styles.playerCardGradient}
           >
             <View style={styles.presenceRow}>
@@ -986,7 +986,7 @@ export default function CreateChallengeScreen() {
         {/* Opponent */}
         <View style={styles.playerCard}>
           <LinearGradient
-            colors={opponentJoined && opponentReady ? ["#4ECDC4", "#45B7AA"] : ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"]}
+            colors={opponentJoined && opponentReady ? ["#4CAF82", "#3A9F6E"] : ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.05)"]}
             style={styles.playerCardGradient}
           >
             {opponentJoined ? (
@@ -1021,7 +1021,7 @@ export default function CreateChallengeScreen() {
           disabled={isLockingFunds || isCreating}
         >
           <LinearGradient
-            colors={["#4ECDC4", "#45B7AA"]}
+            colors={["#4CAF82", "#3A9F6E"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.readyButtonGradient}
@@ -1046,7 +1046,7 @@ export default function CreateChallengeScreen() {
       {opponentJoined && amIReady && !bothReady && (
         <View>
           <View style={styles.waitingMessage}>
-            <ActivityIndicator color="#4ECDC4" size="small" />
+            <ActivityIndicator color="#4CAF82" size="small" />
             <Text style={styles.waitingMessageText}>
               Waiting for {isCreator ? opponentUsername : creatorUsername} to ready up...
             </Text>
@@ -1087,7 +1087,7 @@ export default function CreateChallengeScreen() {
               style={[styles.codeActionBtn, codeCopied && styles.codeActionBtnSuccess]}
               onPress={handleCopyCode}
             >
-              <Copy size={18} color={codeCopied ? "#4ECDC4" : "#FFF"} />
+              <Copy size={18} color={codeCopied ? "#4CAF82" : "#FFF"} />
               <Text
                 style={[
                   styles.codeActionText,
@@ -1115,7 +1115,7 @@ export default function CreateChallengeScreen() {
           <Text style={styles.detailsTitle}>Challenge Details</Text>
           <View style={styles.detailsRow}>
             <View style={styles.detailItem}>
-              <Clock size={16} color="#4ECDC4" />
+              <Clock size={16} color="#4CAF82" />
               <Text style={styles.detailValue}>
                 {Math.floor(currentChallenge.time_control_seconds / 60)}+{currentChallenge.increment_seconds}
               </Text>
@@ -1131,7 +1131,7 @@ export default function CreateChallengeScreen() {
               </View>
             )}
             <View style={styles.detailItem}>
-              <Crown size={16} color="#4ECDC4" />
+              <Crown size={16} color="#4CAF82" />
               <Text style={styles.detailValue}>
                 {pendingSettings.colorPreference === "random" ? "Random" : pendingSettings.colorPreference === "white" ? "White" : "Black"}
               </Text>
@@ -1162,7 +1162,7 @@ export default function CreateChallengeScreen() {
               disabled={isCancelling}
             >
               {isCancelling ? (
-                <ActivityIndicator color="#FF6B6B" size="small" />
+                <ActivityIndicator color="#E05C5C" size="small" />
               ) : (
                 <Text style={styles.cancelButtonText}>Cancel Challenge</Text>
               )}
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   usdcHint: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 12,
     marginBottom: 12,
     marginLeft: 28,
@@ -1328,7 +1328,7 @@ const styles = StyleSheet.create({
   },
   toggleOptionSelected: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   toggleContent: {
     flex: 1,
@@ -1362,7 +1362,7 @@ const styles = StyleSheet.create({
   },
   colorOptionSelected: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   colorCircle: {
     width: 32,
@@ -1432,7 +1432,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   insufficientFunds: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 12,
     textAlign: "center",
     marginTop: 8,
@@ -1529,7 +1529,7 @@ const styles = StyleSheet.create({
   },
   codeActionBtnSuccess: {
     backgroundColor: "rgba(78, 205, 196, 0.2)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   codeActionText: {
     color: "#FFF",
@@ -1537,7 +1537,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   codeActionTextSuccess: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 
   // Challenge details
@@ -1587,7 +1587,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   cancelButtonText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -1710,7 +1710,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   waitingMessageText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 14,
     fontWeight: "500",
   },
@@ -1786,7 +1786,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   customWagerWarning: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 12,
     marginTop: 6,
   },
@@ -1809,7 +1809,7 @@ const styles = StyleSheet.create({
   },
   timeControlOptionSelected: {
     backgroundColor: "rgba(78, 205, 196, 0.2)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   timeControlText: {
     color: "#A0A0A0",
@@ -1817,6 +1817,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   timeControlTextSelected: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
 });

@@ -92,16 +92,16 @@ function getResultConfig(result: GameResult, playedAs: "white" | "black"): {
   switch (result) {
     case "win":
       return {
-        icon: <Trophy size={24} color="#4ECDC4" />,
-        color: "#4ECDC4",
+        icon: <Trophy size={24} color="#4CAF82" />,
+        color: "#4CAF82",
         bgColor: "rgba(78, 205, 196, 0.15)",
         label: "Victory",
         description: `You won playing as ${playedAs}`,
       };
     case "loss":
       return {
-        icon: <XCircle size={24} color="#FF6B6B" />,
-        color: "#FF6B6B",
+        icon: <XCircle size={24} color="#E05C5C" />,
+        color: "#E05C5C",
         bgColor: "rgba(255, 107, 107, 0.15)",
         label: "Defeat",
         description: `You lost playing as ${playedAs}`,
@@ -500,17 +500,17 @@ export default function GameDetailScreen() {
             </View>
             <View style={styles.eloChangeContainer}>
               {game.eloChange >= 0 ? (
-                <TrendingUp size={18} color={game.eloChange > 0 ? "#4ECDC4" : "#A0A0A0"} />
+                <TrendingUp size={18} color={game.eloChange > 0 ? "#4CAF82" : "#A0A0A0"} />
               ) : (
-                <TrendingDown size={18} color="#FF6B6B" />
+                <TrendingDown size={18} color="#E05C5C" />
               )}
               <Text
                 style={[
                   styles.eloChangeText,
                   {
                     color: game.eloChange >= 0
-                      ? game.eloChange > 0 ? "#4ECDC4" : "#A0A0A0"
-                      : "#FF6B6B"
+                      ? game.eloChange > 0 ? "#4CAF82" : "#A0A0A0"
+                      : "#E05C5C"
                   },
                 ]}
               >
@@ -668,7 +668,7 @@ export default function GameDetailScreen() {
             </View>
 
             <View style={styles.statCard}>
-              <Clock size={18} color="#4ECDC4" />
+              <Clock size={18} color="#4CAF82" />
               <Text style={styles.statValue}>
                 {formatDuration(game.gameDurationSeconds)}
               </Text>
@@ -686,14 +686,14 @@ export default function GameDetailScreen() {
             {game.netEarnings !== 0 && (
               <View style={styles.statCard}>
                 {game.netEarnings > 0 ? (
-                  <TrendingUp size={18} color="#4ECDC4" />
+                  <TrendingUp size={18} color="#4CAF82" />
                 ) : (
-                  <TrendingDown size={18} color="#FF6B6B" />
+                  <TrendingDown size={18} color="#E05C5C" />
                 )}
                 <Text
                   style={[
                     styles.statValue,
-                    { color: game.netEarnings > 0 ? "#4ECDC4" : "#FF6B6B" },
+                    { color: game.netEarnings > 0 ? "#4CAF82" : "#E05C5C" },
                   ]}
                 >
                   {game.netEarnings > 0 ? "+" : ""}{formatTCT(game.netEarnings)}
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
 
   // Header

@@ -28,12 +28,15 @@ import { generateText } from "@rork-ai/toolkit-sdk";
 import { VictoryCelebration, AnimatedDragons, SpinningRays } from "@/components/VictoryCelebration";
 import { AntiCheatService, createAntiCheatService, type GameMoveData } from "@/lib/antiCheat";
 import { RewardUnlockAnimation } from "@/components/RewardUnlockAnimation";
-import { getDragonAvatarSource, TCT_COIN_IMAGE } from "@/constants/dragonAssets";
+const TCT_COIN_IMAGE = require("@/assets/images/ui/coin_stack.png");
 import { useRewardTriggers, type UnlockedReward, type EarnedAchievement } from "@/hooks/useRewards";
 import { useWalletStore } from "@/stores/walletStore";
 import { useAuth } from "@/hooks/useAuth";
 import { lockFundsForChallenge, unlockFundsForChallenge } from "@/lib/escrow";
 import { supabase } from "@/lib/supabase";
+import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
+import { useMoveAnimations } from "@/hooks/useMoveAnimations";
+import { BoardAnimationOverlay } from "@/components/BoardAnimationOverlay";
 
 const { width } = Dimensions.get("window");
 const BOARD_SIZE = Math.min(width - 40, 360);
@@ -175,6 +178,19 @@ export default function GameScreen() {
   // Use settings from the centralized settings store
   const boardTheme = gameSettings?.boardTheme || "purple";
   const pieceStyle = gameSettings?.pieceStyle || "unity";
+
+  const {
+    legalGlowAlpha, startLegalGlow, stopLegalGlow,
+    glideState, triggerGlide, handleGlideComplete,
+    illegalSquare, illegalAlpha, illegalShakeX, triggerIllegalMove,
+    captureSquare, handleCaptureComplete, enabled: animEnabled,
+  } = useMoveAnimations();
+
+  const legalGlowStyle = useAnimatedStyle(() => ({ opacity: legalGlowAlpha.value }));
+  const illegalStyle = useAnimatedStyle(() => ({
+    opacity: illegalAlpha.value,
+    transform: [{ translateX: illegalShakeX.value }],
+  }));
 
   function getBoardArray(chess: Chess): (ChessPiece | null)[][] {
     const boardArray: (ChessPiece | null)[][] = [];
@@ -587,15 +603,19 @@ export default function GameScreen() {
           setSelectedSquare(square);
           const moves = game.moves({ square, verbose: true });
           setPossibleMoves(moves.map(move => move.to));
+          startLegalGlow();
         }
       } else {
         if (!isPlayerTurn) {
           const piece = game.get(square);
           if (piece && piece.color === 'w') {
+            stopLegalGlow();
             setSelectedSquare(square);
             const moves = game.moves({ square, verbose: true });
             setPossibleMoves(moves.map(move => move.to));
+            startLegalGlow();
           } else {
+            stopLegalGlow();
             setSelectedSquare(null);
             setPossibleMoves([]);
           }
@@ -604,6 +624,7 @@ export default function GameScreen() {
 
         try {
           const pieceMoving = game.get(selectedSquare);
+          const capturePiece = game.get(square);
 
           // Check if this is a pawn promotion move
           const isPawnPromotion = pieceMoving?.type === 'p' &&
@@ -612,6 +633,7 @@ export default function GameScreen() {
 
           // If pawn promotion and autoQueen is disabled, show modal
           if (isPawnPromotion && !user.gameSettings?.autoQueen) {
+            stopLegalGlow();
             setPendingPromotion({ from: selectedSquare, to: square });
             return;
           }
@@ -622,7 +644,14 @@ export default function GameScreen() {
             promotion: "q",
           });
 
+          if (!moveObj) {
+            triggerIllegalMove(selectedSquare);
+            stopLegalGlow();
+          }
+
           if (moveObj) {
+            if (pieceMoving) triggerGlide(selectedSquare, square, pieceMoving, SQUARE_SIZE, isFlipped, capturePiece ? square : undefined);
+            stopLegalGlow();
             // Play sound with proper move options
             playMove({
               isCapture: !!moveObj.captured,
@@ -706,12 +735,15 @@ export default function GameScreen() {
           }
         } catch (error) {
           console.log("Invalid move:", error);
+          triggerIllegalMove(selectedSquare);
+          stopLegalGlow();
           playIllegalMove();
           const piece = game.get(square);
           if (piece && piece.color === 'w') {
             setSelectedSquare(square);
             const moves = game.moves({ square, verbose: true });
             setPossibleMoves(moves.map(move => move.to));
+            startLegalGlow();
           } else {
             setSelectedSquare(null);
             setPossibleMoves([]);
@@ -719,7 +751,7 @@ export default function GameScreen() {
         }
       }
     },
-    [selectedSquare, gameStarted, gameOver, game, betAmount, winGame, makeComputerMove, isHouseChallenge, checkChallengeObjective, settleHouseChallenge, challengeName, playMove, playWin, playLose, playDraw, playIllegalMove, playPiecePickup, isPlayerTurn, recordMoveForAntiCheat, analyzeGameForAntiCheat, isP2PChallenge]
+    [selectedSquare, gameStarted, gameOver, game, betAmount, winGame, makeComputerMove, isHouseChallenge, checkChallengeObjective, settleHouseChallenge, challengeName, playMove, playWin, playLose, playDraw, playIllegalMove, playPiecePickup, isPlayerTurn, recordMoveForAntiCheat, analyzeGameForAntiCheat, isP2PChallenge, triggerGlide, triggerIllegalMove, startLegalGlow, stopLegalGlow]
   );
 
   const getPieceSize = (): number => {
@@ -1135,7 +1167,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <View style={styles.feedbackCard}>
             <View style={styles.dragonAvatarContainer}>
               <Image
-                source={getDragonAvatarSource(user.profilePicture)}
+                source={user.profilePicture ? { uri: user.profilePicture } : require("@/assets/images/ui/avatar_box.png")}
                 style={styles.dragonAvatar}
               />
               <View style={styles.speechBubble}>
@@ -1236,7 +1268,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
               autoStart={true}
               fadeOut={true}
               fallSpeed={3000}
-              colors={['#FFD700', '#FFA500', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']}
+              colors={['#FFD700', '#FFA500', '#E05C5C', '#4CAF82', '#45B7D1', '#96CEB4']}
             />
             {showCoins && (
               <View style={styles.coinAnimationContainer}>
@@ -1294,7 +1326,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <View style={styles.victoryHeader}>
             <View style={styles.victoryUserInfo}>
               <Image
-                source={getDragonAvatarSource(user.profilePicture)}
+                source={user.profilePicture ? { uri: user.profilePicture } : require("@/assets/images/ui/avatar_box.png")}
                 style={styles.victoryProfilePic}
               />
               <View style={styles.victoryUserDetails}>
@@ -1473,14 +1505,14 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <BlurView intensity={80} tint="dark" style={styles.unlockModalOverlay}>
             <View style={styles.unlockModalContent}>
               <Text style={styles.unlockModalTitle}>
-                {unlockTier === 'teenage' && 'Teenage Dragons Unlocked!'}
-                {unlockTier === 'non-fierce' && 'Non-Fierce Adults Unlocked!'}
-                {unlockTier === 'fierce' && 'Fierce Adults Unlocked!'}
+                {unlockTier === 'teenage' && 'Milestone Reached!'}
+                {unlockTier === 'non-fierce' && 'Elite Rank Achieved!'}
+                {unlockTier === 'fierce' && 'Champion Status!'}
               </Text>
               <Text style={styles.unlockModalDescription}>
-                {unlockTier === 'teenage' && 'You reached 10 wins! New dragon avatars are now available.'}
-                {unlockTier === 'non-fierce' && 'You reached 75 wins! More powerful dragon avatars are now available.'}
-                {unlockTier === 'fierce' && 'You reached 200 wins! The most fierce dragon avatars are now available!'}
+                {unlockTier === 'teenage' && 'You reached 10 wins! New profile options are now available.'}
+                {unlockTier === 'non-fierce' && 'You reached 75 wins! More profile customisation unlocked.'}
+                {unlockTier === 'fierce' && 'You reached 200 wins! You\'ve unlocked the top tier.'}
               </Text>
               <TouchableOpacity
                 style={styles.unlockModalButton}
@@ -1714,13 +1746,24 @@ Be friendly and constructive. Keep it brief and conversational.`;
                         ]}
                         onPress={() => handleSquarePress(rowIndex, colIndex)}
                       >
-                        {isPossibleMove && (
-                          <View style={[
-                            styles.possibleMoveIndicator,
-                            piece && styles.captureIndicator,
-                          ]} />
+                        {square === illegalSquare && (
+                          <ReAnimated.View style={[StyleSheet.absoluteFillObject, styles.illegalOverlay, illegalStyle]} />
                         )}
-                        {piece && (
+                        {isPossibleMove && (
+                          animEnabled ? (
+                            <ReAnimated.View style={[
+                              styles.possibleMoveIndicator,
+                              piece ? styles.captureIndicatorGlow : styles.moveIndicatorGlow,
+                              legalGlowStyle,
+                            ]} />
+                          ) : (
+                            <View style={[
+                              styles.possibleMoveIndicator,
+                              piece && styles.captureIndicator,
+                            ]} />
+                          )
+                        )}
+                        {piece && !(glideState && (square === glideState.from || square === glideState.to)) && (
                           <View style={styles.pieceContainer}>
                             <ChessPieceComponent
                               type={piece.type}
@@ -1735,6 +1778,16 @@ Be friendly and constructive. Keep it brief and conversational.`;
                   })}
                 </View>
               ))}
+              <BoardAnimationOverlay
+                boardSize={BOARD_SIZE}
+                squareSize={SQUARE_SIZE}
+                isFlipped={isFlipped}
+                glideState={glideState}
+                pieceStyle={pieceStyle}
+                captureSquare={captureSquare}
+                onGlideComplete={handleGlideComplete}
+                onCaptureComplete={handleCaptureComplete}
+              />
             </View>
             {/* File labels (a-h) along bottom */}
             <View style={styles.fileLabels}>
@@ -1758,7 +1811,7 @@ Be friendly and constructive. Keep it brief and conversational.`;
           <View style={styles.playerInfoCard}>
             <View style={styles.playerAvatarSection}>
               <Image
-                source={getDragonAvatarSource(user.profilePicture)}
+                source={user.profilePicture ? { uri: user.profilePicture } : require("@/assets/images/ui/avatar_box.png")}
                 style={styles.playerAvatar}
               />
               <Text style={styles.playerCountryFlag}>{getCountryFlag(user.country)}</Text>
@@ -2361,6 +2414,21 @@ const styles = StyleSheet.create({
     height: SQUARE_SIZE * 0.3,
     borderRadius: SQUARE_SIZE * 0.15,
     backgroundColor: "rgba(155, 207, 83, 0.6)",
+  },
+  illegalOverlay: {
+    backgroundColor: "rgba(255, 30, 30, 0.6)",
+    zIndex: 5,
+  },
+  moveIndicatorGlow: {
+    backgroundColor: "rgba(0, 220, 80, 0.75)",
+  },
+  captureIndicatorGlow: {
+    width: SQUARE_SIZE - 4,
+    height: SQUARE_SIZE - 4,
+    borderRadius: SQUARE_SIZE / 2,
+    backgroundColor: "transparent",
+    borderWidth: 3,
+    borderColor: "rgba(0, 220, 80, 0.75)",
   },
   victoryHeader: {
     position: "absolute",

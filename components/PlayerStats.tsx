@@ -94,8 +94,8 @@ const StatCard = memo(function StatCard({
     <View style={styles.statCard}>
       <View style={styles.statCardHeader}>
         {icon}
-        {trend === "up" && <TrendingUp size={12} color="#4ECDC4" />}
-        {trend === "down" && <TrendingDown size={12} color="#FF6B6B" />}
+        {trend === "up" && <TrendingUp size={12} color="#4CAF82" />}
+        {trend === "down" && <TrendingDown size={12} color="#E05C5C" />}
       </View>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -133,11 +133,11 @@ const WinRateRing = memo(function WinRateRing({
       </View>
       <View style={styles.winRateBreakdown}>
         <View style={styles.breakdownItem}>
-          <View style={[styles.breakdownDot, { backgroundColor: "#4ECDC4" }]} />
+          <View style={[styles.breakdownDot, { backgroundColor: "#4CAF82" }]} />
           <Text style={styles.breakdownText}>{wins} Wins</Text>
         </View>
         <View style={styles.breakdownItem}>
-          <View style={[styles.breakdownDot, { backgroundColor: "#FF6B6B" }]} />
+          <View style={[styles.breakdownDot, { backgroundColor: "#E05C5C" }]} />
           <Text style={styles.breakdownText}>{losses} Losses</Text>
         </View>
         {draws > 0 && (
@@ -178,7 +178,7 @@ export const PlayerStats = memo(function PlayerStats({
             <Text style={styles.compactLabel}>Wins</Text>
           </View>
           <View style={styles.compactStat}>
-            <Target size={16} color="#4ECDC4" />
+            <Target size={16} color="#4CAF82" />
             <Text style={styles.compactValue}>{stats.winRate.toFixed(0)}%</Text>
             <Text style={styles.compactLabel}>Win Rate</Text>
           </View>
@@ -188,7 +188,7 @@ export const PlayerStats = memo(function PlayerStats({
             <Text style={styles.compactLabel}>ELO</Text>
           </View>
           <View style={styles.compactStat}>
-            <Flame size={16} color="#FF6B6B" />
+            <Flame size={16} color="#E05C5C" />
             <Text style={styles.compactValue}>{stats.currentStreak}</Text>
             <Text style={styles.compactLabel}>Streak</Text>
           </View>
@@ -223,25 +223,25 @@ export const PlayerStats = memo(function PlayerStats({
             trend={eloTrend}
           />
           <StatCard
-            icon={<Flame size={18} color="#FF6B6B" />}
+            icon={<Flame size={18} color="#E05C5C" />}
             label="Current Streak"
             value={stats.currentStreak}
             subValue={`Best: ${stats.longestStreak}`}
-            color={stats.currentStreak >= 3 ? "#FF6B6B" : "#FFFFFF"}
+            color={stats.currentStreak >= 3 ? "#E05C5C" : "#FFFFFF"}
           />
           <StatCard
             icon={<Coins size={18} color="#FFD700" />}
             label="Net Earnings"
             value={formatTCT(stats.netEarnings)}
             subValue="TCT"
-            color={stats.netEarnings >= 0 ? "#4ECDC4" : "#FF6B6B"}
+            color={stats.netEarnings >= 0 ? "#4CAF82" : "#E05C5C"}
             trend={earningsTrend}
           />
           <StatCard
-            icon={<Clock size={18} color="#4ECDC4" />}
+            icon={<Clock size={18} color="#4CAF82" />}
             label="Avg Game Time"
             value={formatDuration(stats.avgGameDuration)}
-            color="#4ECDC4"
+            color="#4CAF82"
           />
         </View>
       </View>
@@ -270,7 +270,7 @@ export const PlayerStats = memo(function PlayerStats({
           </View>
           <View style={styles.winTypeRow}>
             <View style={styles.winTypeInfo}>
-              <Flag size={16} color="#4ECDC4" />
+              <Flag size={16} color="#4CAF82" />
               <Text style={styles.winTypeLabel}>Resignations</Text>
             </View>
             <Text style={styles.winTypeValue}>{stats.winsByResignation}</Text>
@@ -280,7 +280,7 @@ export const PlayerStats = memo(function PlayerStats({
                   styles.winTypeProgress,
                   {
                     width: `${stats.wins > 0 ? (stats.winsByResignation / stats.wins) * 100 : 0}%`,
-                    backgroundColor: "#4ECDC4",
+                    backgroundColor: "#4CAF82",
                   },
                 ]}
               />
@@ -313,33 +313,33 @@ export const PlayerStats = memo(function PlayerStats({
         <View style={styles.earningsContainer}>
           <View style={styles.earningsRow}>
             <View style={styles.earningsInfo}>
-              <TrendingUp size={16} color="#4ECDC4" />
+              <TrendingUp size={16} color="#4CAF82" />
               <Text style={styles.earningsLabel}>Total Won</Text>
             </View>
-            <Text style={[styles.earningsValue, { color: "#4ECDC4" }]}>
+            <Text style={[styles.earningsValue, { color: "#4CAF82" }]}>
               +{formatNumber(stats.totalWonTct)} TCT
             </Text>
           </View>
           <View style={styles.earningsRow}>
             <View style={styles.earningsInfo}>
-              <TrendingDown size={16} color="#FF6B6B" />
+              <TrendingDown size={16} color="#E05C5C" />
               <Text style={styles.earningsLabel}>Total Lost</Text>
             </View>
-            <Text style={[styles.earningsValue, { color: "#FF6B6B" }]}>
+            <Text style={[styles.earningsValue, { color: "#E05C5C" }]}>
               -{formatNumber(stats.totalLostTct)} TCT
             </Text>
           </View>
           <View style={styles.earningsDivider} />
           <View style={styles.earningsRow}>
             <View style={styles.earningsInfo}>
-              <BarChart3 size={16} color={stats.netEarnings >= 0 ? "#4ECDC4" : "#FF6B6B"} />
+              <BarChart3 size={16} color={stats.netEarnings >= 0 ? "#4CAF82" : "#E05C5C"} />
               <Text style={styles.earningsLabel}>Net Profit</Text>
             </View>
             <Text
               style={[
                 styles.earningsValue,
                 styles.netEarnings,
-                { color: stats.netEarnings >= 0 ? "#4ECDC4" : "#FF6B6B" },
+                { color: stats.netEarnings >= 0 ? "#4CAF82" : "#E05C5C" },
               ]}
             >
               {formatTCT(stats.netEarnings)} TCT
@@ -360,7 +360,7 @@ export const PlayerStats = memo(function PlayerStats({
             <Text style={styles.averageLabel}>Moves/Game</Text>
           </View>
           <View style={styles.averageCard}>
-            <Clock size={20} color="#4ECDC4" />
+            <Clock size={20} color="#4CAF82" />
             <Text style={styles.averageValue}>
               {formatDuration(stats.avgGameDuration)}
             </Text>
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 8,
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(78, 205, 196, 0.1)",

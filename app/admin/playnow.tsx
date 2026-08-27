@@ -55,7 +55,7 @@ interface PlayNowGame {
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "#FCD34D",
-  active: "#4ECDC4",
+  active: "#4CAF82",
   completed: "#4ADE80",
   abandoned: "#FF453A",
   cancelled: "#A0A0A0",
@@ -322,7 +322,7 @@ function AdminPlayNowContent() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
-              <Ionicons name="game-controller" size={24} color="#4ECDC4" />
+              <Ionicons name="game-controller" size={24} color="#4CAF82" />
               <Text style={styles.headerTitle}>Play Now</Text>
             </View>
             <TouchableOpacity
@@ -386,7 +386,7 @@ function AdminPlayNowContent() {
           {/* List */}
           {isLoading && games.length === 0 ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ECDC4" />
+              <ActivityIndicator size="large" color="#4CAF82" />
             </View>
           ) : (
             <FlatList
@@ -473,10 +473,10 @@ const styles = StyleSheet.create({
   },
   filterTabActive: {
     backgroundColor: "rgba(78, 205, 196, 0.15)",
-    borderColor: "#4ECDC4",
+    borderColor: "#4CAF82",
   },
   filterTabText: { fontSize: 13, color: "#A0A0A0", fontWeight: "500" },
-  filterTabTextActive: { color: "#4ECDC4" },
+  filterTabTextActive: { color: "#4CAF82" },
   countRow: { paddingHorizontal: 16, marginBottom: 8 },
   countText: { fontSize: 13, color: "#666" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },

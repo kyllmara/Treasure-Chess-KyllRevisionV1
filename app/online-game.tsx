@@ -32,6 +32,9 @@ import { useSoundAndHaptics } from "@/hooks/useSoundAndHaptics";
 import { useSettingsStore } from "@/stores/settingsStore";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getAvatarSource, ROBOT_AVATAR_INDEX } from "@/constants/avatars";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useMoveAnimations } from "@/hooks/useMoveAnimations";
+import { BoardAnimationOverlay } from "@/components/BoardAnimationOverlay";
 
 const { width } = Dimensions.get("window");
 const BOARD_SIZE = Math.min(width - 40, 360);
@@ -199,6 +202,19 @@ export default function OnlineGameScreen() {
   const isFlipped = myColor === "b";
   const boardTheme = gameSettings?.boardTheme || "purple";
   const pieceStyle = gameSettings?.pieceStyle || "unity";
+
+  const {
+    legalGlowAlpha, startLegalGlow, stopLegalGlow,
+    glideState, triggerGlide, handleGlideComplete,
+    illegalSquare, illegalAlpha, illegalShakeX, triggerIllegalMove,
+    captureSquare, handleCaptureComplete, enabled: animEnabled,
+  } = useMoveAnimations();
+
+  const legalGlowStyle = useAnimatedStyle(() => ({ opacity: legalGlowAlpha.value }));
+  const illegalStyle = useAnimatedStyle(() => ({
+    opacity: illegalAlpha.value,
+    transform: [{ translateX: illegalShakeX.value }],
+  }));
 
   // Get board array from chess.js
   const getBoardArray = useCallback((chessInstance: Chess): (ChessPiece | null)[][] => {
@@ -853,14 +869,17 @@ export default function OnlineGameScreen() {
         const move = possibleMoves.find((m) => m === square);
         if (move) {
           const movingPiece = chess.get(selectedSquare);
+          const capturePiece = chess.get(square);
           const isPromotion =
             movingPiece?.type === "p" &&
             ((movingPiece.color === "w" && square[1] === "8") ||
               (movingPiece.color === "b" && square[1] === "1"));
 
+          stopLegalGlow();
           if (isPromotion) {
             setPendingPromotion({ from: selectedSquare, to: square });
           } else {
+            if (movingPiece) triggerGlide(selectedSquare, square, movingPiece, SQUARE_SIZE, isFlipped, capturePiece ? square : undefined);
             executeMove(selectedSquare, square);
           }
         } else if (piece && piece.color === myColor) {
@@ -868,7 +887,10 @@ export default function OnlineGameScreen() {
           setSelectedSquare(square);
           const moves = chess.moves({ square, verbose: true });
           setPossibleMoves(moves.map((m) => m.to as Square));
+          startLegalGlow();
         } else {
+          triggerIllegalMove(selectedSquare);
+          stopLegalGlow();
           setSelectedSquare(null);
           setPossibleMoves([]);
         }
@@ -877,9 +899,10 @@ export default function OnlineGameScreen() {
         setSelectedSquare(square);
         const moves = chess.moves({ square, verbose: true });
         setPossibleMoves(moves.map((m) => m.to as Square));
+        startLegalGlow();
       }
     },
-    [chess, selectedSquare, possibleMoves, isMyTurn, isSubmittingMove, gameData?.status, myColor, playPiecePickup, executeMove]
+    [chess, selectedSquare, possibleMoves, isMyTurn, isSubmittingMove, gameData?.status, myColor, playPiecePickup, executeMove, triggerGlide, triggerIllegalMove, startLegalGlow, stopLegalGlow]
   );
 
   // Handle promotion selection
@@ -1284,13 +1307,24 @@ export default function OnlineGameScreen() {
                           ]}
                           onPress={() => handleSquarePressImpl(square)}
                         >
-                          {isPossibleMove && (
-                            <View style={[
-                              styles.possibleMoveIndicator,
-                              piece && styles.captureIndicator,
-                            ]} />
+                          {square === illegalSquare && (
+                            <Animated.View style={[StyleSheet.absoluteFillObject, styles.illegalOverlay, illegalStyle]} />
                           )}
-                          {piece && (
+                          {isPossibleMove && (
+                            animEnabled ? (
+                              <Animated.View style={[
+                                styles.possibleMoveIndicator,
+                                piece ? styles.captureIndicatorGlow : styles.moveIndicatorGlow,
+                                legalGlowStyle,
+                              ]} />
+                            ) : (
+                              <View style={[
+                                styles.possibleMoveIndicator,
+                                piece && styles.captureIndicator,
+                              ]} />
+                            )
+                          )}
+                          {piece && !(glideState && (square === glideState.from || square === glideState.to)) && (
                             <View style={styles.pieceContainer}>
                               <ChessPieceComponent
                                 type={piece.type}
@@ -1306,6 +1340,16 @@ export default function OnlineGameScreen() {
                   </View>
                 );
               })}
+              <BoardAnimationOverlay
+                boardSize={BOARD_SIZE}
+                squareSize={SQUARE_SIZE}
+                isFlipped={isFlipped}
+                glideState={glideState}
+                pieceStyle={pieceStyle}
+                captureSquare={captureSquare}
+                onGlideComplete={handleGlideComplete}
+                onCaptureComplete={handleCaptureComplete}
+              />
             </View>
             {/* File labels */}
             <View style={styles.fileLabels}>
@@ -1640,6 +1684,21 @@ const styles = StyleSheet.create({
   pieceContainer: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  illegalOverlay: {
+    backgroundColor: "rgba(255, 30, 30, 0.6)",
+    zIndex: 5,
+  },
+  moveIndicatorGlow: {
+    backgroundColor: "rgba(0, 220, 80, 0.75)",
+  },
+  captureIndicatorGlow: {
+    width: "92%",
+    height: "92%",
+    backgroundColor: "transparent",
+    borderWidth: 3,
+    borderColor: "rgba(0, 220, 80, 0.75)",
+    borderRadius: 100,
   },
   possibleMoveIndicator: {
     position: "absolute",

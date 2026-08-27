@@ -29,6 +29,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useUserStore } from "@/stores/userStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { useAuth } from "@/hooks/useAuth";
+import { DEV_BYPASS_AUTH } from "@/constants/devFlags";
 import { NetworkMonitor, type NetworkState } from "@/lib/networkMonitor";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Profile, Balance } from "@/types/supabase";
@@ -203,7 +204,7 @@ function createDefaultStats(): HomeStats {
 
 export function useHomeStats(): UseHomeStatsResult {
   // External hooks
-  const { isAuthenticated, isGuest } = useAuth();
+  const { isAuthenticated, isGuest, profile: authProfile } = useAuth();
   const userStore = useUserStore();
   const walletStore = useWalletStore();
 
@@ -350,9 +351,11 @@ export function useHomeStats(): UseHomeStatsResult {
   // --------------------------------------------------------------------------
 
   const fetchStats = useCallback(async (showLoadingState = true): Promise<HomeStats | null> => {
-    const userId = userStore.profile?.id;
+    // Always derive the user ID from AuthContext so the stub session and the
+    // persisted userStore (which may hold a previous real user's data) can never diverge.
+    const userId = authProfile?.id;
 
-    if (!isSupabaseConfigured || !userId) {
+    if (DEV_BYPASS_AUTH || !isSupabaseConfigured || !userId) {
       return null;
     }
 
@@ -376,6 +379,12 @@ export function useHomeStats(): UseHomeStatsResult {
       ]);
 
       if (profileResult.error) {
+        // PGRST116 = no rows — stub/new user has no profile yet; return null silently
+        if (profileResult.error.code === "PGRST116") {
+          setSyncStatus(prev => ({ ...prev, isSyncing: false }));
+          setIsLoading(false);
+          return null;
+        }
         throw profileResult.error;
       }
 

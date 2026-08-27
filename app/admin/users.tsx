@@ -394,7 +394,7 @@ function AdminUsersContent() {
         <View style={styles.userBadges}>
           {item.isAdmin && (
             <View style={[styles.badge, styles.adminBadge]}>
-              <Ionicons name="shield" size={12} color="#4ECDC4" />
+              <Ionicons name="shield" size={12} color="#4CAF82" />
             </View>
           )}
           {item.isBanned && (
@@ -464,7 +464,7 @@ function AdminUsersContent() {
             <ActionButton
               icon="shield"
               label="Admin"
-              color="#4ECDC4"
+              color="#4CAF82"
               onPress={() => handlePromoteAdmin(item.id, item.username)}
             />
           )

@@ -22,7 +22,6 @@ import {
   Alert,
   Clipboard,
   Platform,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -356,21 +355,6 @@ export default function GameResultScreen() {
             <SpinningRays size={400} tint="#FFD700" />
           )}
 
-          {/* Big Left Dragon */}
-          <Image
-            source={require("@/assets/images/result-screen/Left_Dragon.png")}
-            style={styles.bigLeftDragon}
-            resizeMode="contain"
-          />
-
-          {/* Big Right Dragon */}
-          <Image
-            source={require("@/assets/images/result-screen/Right_Dragon.png")}
-            style={styles.bigRightDragon}
-            resizeMode="contain"
-          />
-
-          {/* Small Animated Dragons */}
           <AnimatedDragons size={60} />
 
           <View style={styles.iconContainer}>
@@ -628,22 +612,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     position: "relative",
-  },
-  bigLeftDragon: {
-    position: "absolute",
-    left: -30,
-    bottom: 10,
-    width: 160,
-    height: 200,
-    zIndex: 2,
-  },
-  bigRightDragon: {
-    position: "absolute",
-    right: -30,
-    bottom: 10,
-    width: 160,
-    height: 200,
-    zIndex: 2,
   },
   iconContainer: {
     width: 100,

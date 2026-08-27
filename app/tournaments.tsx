@@ -61,9 +61,9 @@ interface TournamentCardProps {
 function getTypeGradient(type: TournamentType): [string, string] {
   switch (type) {
     case "knockout":
-      return ["#FF6B6B", "#FF8E8E"];
+      return ["#E05C5C", "#E88080"];
     case "swiss":
-      return ["#4ECDC4", "#7EDDD6"];
+      return ["#4CAF82", "#7EDDD6"];
     case "arena":
       return ["#FFB347", "#FFCC80"];
     default:
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
   },
   retryButton: {
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryButtonText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
     fontWeight: "600",
   },

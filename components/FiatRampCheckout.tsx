@@ -286,7 +286,7 @@ export function FiatRampCheckout({
   const renderSuccess = () => (
     <View style={styles.centerContainer}>
       <View style={styles.successIconContainer}>
-        <CheckCircle size={64} color="#4ECDC4" />
+        <CheckCircle size={64} color="#4CAF82" />
       </View>
       <Text style={styles.successTitle}>
         {orderType === "buy" ? "Deposit Initiated!" : "Withdrawal Initiated!"}
@@ -298,7 +298,7 @@ export function FiatRampCheckout({
       </Text>
       <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
         <LinearGradient
-          colors={["#4ECDC4", "#44A08D"]}
+          colors={["#4CAF82", "#3A9F6E"]}
           style={styles.doneButtonGradient}
         >
           <Text style={styles.doneButtonText}>Done</Text>

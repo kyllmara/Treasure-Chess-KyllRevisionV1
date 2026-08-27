@@ -68,16 +68,16 @@ const STEP_CONFIG: Record<
   MigrationStep,
   { icon: React.ElementType; label: string; color: string }
 > = {
-  detecting: { icon: Database, label: "Detecting data", color: "#4ECDC4" },
-  backing_up: { icon: Shield, label: "Creating backup", color: "#4ECDC4" },
+  detecting: { icon: Database, label: "Detecting data", color: "#4CAF82" },
+  backing_up: { icon: Shield, label: "Creating backup", color: "#4CAF82" },
   migrating_profile: { icon: User, label: "Profile data", color: "#FFD700" },
   migrating_balance: { icon: Wallet, label: "Wallet balance", color: "#FFD700" },
   migrating_transactions: { icon: Database, label: "Transactions", color: "#FFD700" },
   migrating_settings: { icon: Settings, label: "Settings", color: "#FFD700" },
-  verifying: { icon: CheckCircle, label: "Verifying", color: "#4ECDC4" },
-  cleaning_up: { icon: Database, label: "Cleaning up", color: "#4ECDC4" },
-  complete: { icon: CheckCircle, label: "Complete", color: "#4ECDC4" },
-  failed: { icon: AlertCircle, label: "Failed", color: "#FF6B6B" },
+  verifying: { icon: CheckCircle, label: "Verifying", color: "#4CAF82" },
+  cleaning_up: { icon: Database, label: "Cleaning up", color: "#4CAF82" },
+  complete: { icon: CheckCircle, label: "Complete", color: "#4CAF82" },
+  failed: { icon: AlertCircle, label: "Failed", color: "#E05C5C" },
 };
 
 // ============================================================================
@@ -121,9 +121,9 @@ function StepIndicator({
   }, [isActive, pulseAnim]);
 
   const iconColor = isFailed
-    ? "#FF6B6B"
+    ? "#E05C5C"
     : isComplete
-    ? "#4ECDC4"
+    ? "#4CAF82"
     : isActive
     ? "#FFD700"
     : "#666666";
@@ -140,9 +140,9 @@ function StepIndicator({
         ]}
       >
         {isComplete ? (
-          <CheckCircle size={20} color="#4ECDC4" />
+          <CheckCircle size={20} color="#4CAF82" />
         ) : isFailed ? (
-          <AlertCircle size={20} color="#FF6B6B" />
+          <AlertCircle size={20} color="#E05C5C" />
         ) : (
           <Icon size={20} color={iconColor} />
         )}
@@ -350,7 +350,7 @@ export function MigrationScreen({
           <Text style={styles.summaryTitle}>What will be migrated:</Text>
 
           <View style={styles.summaryItem}>
-            <User size={20} color="#4ECDC4" />
+            <User size={20} color="#4CAF82" />
             <View style={styles.summaryItemContent}>
               <Text style={styles.summaryItemLabel}>Profile Data</Text>
               <Text style={styles.summaryItemValue}>
@@ -382,7 +382,7 @@ export function MigrationScreen({
       ) : null}
 
       <View style={styles.infoBox}>
-        <Shield size={16} color="#4ECDC4" />
+        <Shield size={16} color="#4CAF82" />
         <Text style={styles.infoText}>
           A backup will be created. You can rollback within 30 days if needed.
         </Text>
@@ -454,7 +454,7 @@ export function MigrationScreen({
   const renderSuccess = () => (
     <View style={styles.resultContainer}>
       <View style={styles.successIconContainer}>
-        <CheckCircle size={80} color="#4ECDC4" />
+        <CheckCircle size={80} color="#4CAF82" />
       </View>
 
       <Text style={styles.title}>Migration Complete!</Text>
@@ -466,19 +466,19 @@ export function MigrationScreen({
         <View style={styles.resultSummary}>
           {result.migratedItems.profile && (
             <View style={styles.resultItem}>
-              <CheckCircle size={16} color="#4ECDC4" />
+              <CheckCircle size={16} color="#4CAF82" />
               <Text style={styles.resultItemText}>Profile data migrated</Text>
             </View>
           )}
           {result.migratedItems.balance && (
             <View style={styles.resultItem}>
-              <CheckCircle size={16} color="#4ECDC4" />
+              <CheckCircle size={16} color="#4CAF82" />
               <Text style={styles.resultItemText}>Wallet balance migrated</Text>
             </View>
           )}
           {result.migratedItems.transactionsCount > 0 && (
             <View style={styles.resultItem}>
-              <CheckCircle size={16} color="#4ECDC4" />
+              <CheckCircle size={16} color="#4CAF82" />
               <Text style={styles.resultItemText}>
                 {result.migratedItems.transactionsCount} transactions migrated
               </Text>
@@ -486,7 +486,7 @@ export function MigrationScreen({
           )}
           {result.migratedItems.settings && (
             <View style={styles.resultItem}>
-              <CheckCircle size={16} color="#4ECDC4" />
+              <CheckCircle size={16} color="#4CAF82" />
               <Text style={styles.resultItemText}>Settings migrated</Text>
             </View>
           )}
@@ -512,7 +512,7 @@ export function MigrationScreen({
   const renderFailed = () => (
     <View style={styles.resultContainer}>
       <View style={styles.errorIconContainer}>
-        <AlertCircle size={80} color="#FF6B6B" />
+        <AlertCircle size={80} color="#E05C5C" />
       </View>
 
       <Text style={styles.title}>Migration Failed</Text>
@@ -524,7 +524,7 @@ export function MigrationScreen({
         <View style={styles.errorList}>
           {result.errors.slice(0, 3).map((error, index) => (
             <View key={index} style={styles.errorItem}>
-              <AlertCircle size={14} color="#FF6B6B" />
+              <AlertCircle size={14} color="#E05C5C" />
               <Text style={styles.errorItemText} numberOfLines={2}>
                 {error.message}
               </Text>
@@ -534,7 +534,7 @@ export function MigrationScreen({
       )}
 
       <View style={styles.infoBox}>
-        <Shield size={16} color="#4ECDC4" />
+        <Shield size={16} color="#4CAF82" />
         <Text style={styles.infoText}>
           Your local data is safe. No data was lost.
         </Text>
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     lineHeight: 20,
   },
   primaryButton: {
@@ -780,10 +780,10 @@ const styles = StyleSheet.create({
     color: "#666666",
   },
   stepLabelComplete: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   stepLabelFailed: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   stepLabelActive: {
     color: "#FFD700",
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   errorItemText: {
     flex: 1,
     fontSize: 14,
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   buttonRow: {
     flexDirection: "row",

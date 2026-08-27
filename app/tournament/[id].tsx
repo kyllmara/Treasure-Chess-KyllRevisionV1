@@ -484,7 +484,7 @@ function TournamentDetailContent() {
                     ? `${tournament.entry_fee_tct} TCT`
                     : "Free"
                 }
-                icon={<Coins size={20} color="#4ECDC4" />}
+                icon={<Coins size={20} color="#4CAF82" />}
               />
               <TournamentInfoCard
                 label="Players"
@@ -503,7 +503,7 @@ function TournamentDetailContent() {
                     disabled={isRegistering}
                   >
                     {isRegistering ? (
-                      <ActivityIndicator size="small" color="#FF6B6B" />
+                      <ActivityIndicator size="small" color="#E05C5C" />
                     ) : (
                       <Text style={styles.unregisterButtonText}>
                         Unregister
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
     textTransform: "uppercase",
   },
 
@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
   unregisterButtonText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#FF6B6B",
+    color: "#E05C5C",
   },
   spotsWarning: {
     color: "#FFD700",
@@ -926,7 +926,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   registrationInfoText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 13,
     fontWeight: "500",
     textAlign: "center",
@@ -1081,7 +1081,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   errorText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
   },
   retryButton: {
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryButtonText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 14,
     fontWeight: "600",
   },

@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   errorText: {
-    color: "#FF6B6B",
+    color: "#E05C5C",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   fallbackText: {
-    color: "#4ECDC4",
+    color: "#4CAF82",
     fontSize: 12,
     marginTop: 16,
   },

@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
+import * as WebBrowser from "expo-web-browser";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
@@ -51,7 +52,7 @@ import { useWalletStore } from "@/stores/walletStore";
 import { useWallet } from "@/hooks/useWallet";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getVaultAddress, getVaultStatus, type VaultStatus } from "@/lib/vault";
+import { getVaultAddress } from "@/lib/vault";
 import { FiatRampCheckout } from "@/components/FiatRampCheckout";
 import {
   getFiatRampService,
@@ -199,7 +200,7 @@ function PendingDepositItem({ deposit }: { deposit: PendingDeposit }) {
     <View style={styles.pendingItem}>
       <View style={styles.pendingIconContainer}>
         {deposit.status === "confirmed" ? (
-          <CheckCircle size={24} color="#4ECDC4" />
+          <CheckCircle size={24} color="#4CAF82" />
         ) : deposit.status === "failed" ? (
           <AlertCircle size={24} color="#F5576C" />
         ) : (
@@ -261,7 +262,7 @@ function CryptoAddressCard({
         <TouchableOpacity style={styles.addressRow} onPress={onCopy} activeOpacity={0.7}>
           <Text style={styles.addressText}>{truncateAddress(address, 12, 10)}</Text>
           {copied ? (
-            <Check size={18} color="#4ECDC4" />
+            <Check size={18} color="#4CAF82" />
           ) : (
             <Copy size={18} color="#FFD700" />
           )}
@@ -309,11 +310,12 @@ export default function DepositScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingDeposits, setPendingDeposits] = useState<PendingDeposit[]>([]);
   const [vaultAddress, setVaultAddress] = useState<string | null>(null);
-  const [vaultStatus, setVaultStatus] = useState<VaultStatus | null>(null);
+
   const [fiatReferenceCode, setFiatReferenceCode] = useState<string | null>(null);
   const [fiatDepositRequests, setFiatDepositRequests] = useState<FiatDepositRequest[]>([]);
   const [referenceCopied, setReferenceCopied] = useState(false);
   const [isSubmittingFiat, setIsSubmittingFiat] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState(false);
 
   // Fiat ramp state
   const [showFiatRampCheckout, setShowFiatRampCheckout] = useState(false);
@@ -339,13 +341,7 @@ export default function DepositScreen() {
 
   // Fetch vault address on mount
   useEffect(() => {
-    async function fetchVaultAddress() {
-      const address = await getVaultAddress();
-      setVaultAddress(address);
-      const status = await getVaultStatus();
-      setVaultStatus(status);
-    }
-    fetchVaultAddress();
+    getVaultAddress().then(setVaultAddress);
   }, []);
 
   // Use vault address for deposits (platform custody model)
@@ -393,6 +389,65 @@ export default function DepositScreen() {
     setStep("fiat-confirm");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [amount, authProfile?.id]);
+
+  // Stripe card payment — creates a Checkout Session and opens it in-browser
+  const handleStripeCheckout = useCallback(async (amountUsd: number) => {
+    if (!authProfile?.id) {
+      Alert.alert("Error", "You must be logged in to deposit");
+      return;
+    }
+    if (amountUsd < 1) {
+      Alert.alert("Invalid Amount", "Minimum deposit is $1");
+      return;
+    }
+
+    setIsStripeLoading(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("stripe-create-checkout", {
+        body: { amount_usd: amountUsd },
+      });
+      if (invokeError) throw new Error(invokeError.message ?? "Failed to create checkout session");
+      if (data?.error) throw new Error(data.error);
+
+      const { checkout_url } = data;
+
+      // Open Stripe's hosted checkout in an in-app browser
+      const result = await WebBrowser.openAuthSessionAsync(checkout_url, "treasurechess://");
+
+      if (result.type === "success") {
+        const url = new URL((result as any).url);
+        const stripeStatus = url.searchParams.get("stripe_status");
+
+        if (stripeStatus === "success") {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          // Poll for balance update — webhook fires async so give it up to 10s
+          const expectedTct = usdToTct(amountUsd);
+          const balanceBefore = profile?.availableTct ?? 0;
+          let credited = false;
+          for (let i = 0; i < 5; i++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            await refreshBalance();
+            const balanceNow = useUserStore.getState().profile?.availableTct ?? 0;
+            if (balanceNow >= balanceBefore + expectedTct) { credited = true; break; }
+          }
+          if (profile?.id) await refreshTransactions(profile.id);
+          Alert.alert(
+            "Payment Successful!",
+            credited
+              ? `${expectedTct.toLocaleString()} TCT has been added to your balance.`
+              : `Payment received! Your ${expectedTct.toLocaleString()} TCT balance will update shortly.`,
+            [{ text: "Great!", onPress: () => { setStep("select"); setAmount(""); setSelectedPreset(null); } }]
+          );
+        }
+        // stripe_status === "cancel" → user cancelled, stay on amount step
+      }
+    } catch (err: any) {
+      console.error("[Stripe] Checkout error:", err);
+      Alert.alert("Payment Error", err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setIsStripeLoading(false);
+    }
+  }, [authProfile?.id, profile?.id, refreshBalance, refreshTransactions]);
 
   // Submit fiat deposit request to DB and open Revolut
   const handleSubmitFiatDeposit = useCallback(async () => {
@@ -543,10 +598,10 @@ export default function DepositScreen() {
 
             <View style={styles.methodsContainer}>
               <MethodCard
-                title="Card / Bank"
-                subtitle="Revolut, Apple Pay, BACS"
+                title="Card / Apple Pay"
+                subtitle="Visa, Mastercard, Apple Pay"
                 icon={CreditCard}
-                gradientColors={["#0075EB", "#005BB5"]}
+                gradientColors={["#635BFF", "#4B44CC"]}
                 onPress={() => handleSelectMethod("fiat")}
                 badge="Instant"
               />
@@ -576,7 +631,7 @@ export default function DepositScreen() {
                   <View key={req.id} style={styles.pendingItem}>
                     <View style={styles.pendingIconContainer}>
                       {req.status === "approved" ? (
-                        <CheckCircle size={24} color="#4ECDC4" />
+                        <CheckCircle size={24} color="#4CAF82" />
                       ) : req.status === "rejected" ? (
                         <AlertCircle size={24} color="#F5576C" />
                       ) : (
@@ -604,7 +659,7 @@ export default function DepositScreen() {
       case "amount":
         const numAmount = parseFloat(amount) || 0;
         const tctAmount = usdToTct(numAmount);
-        const isValidAmount = numAmount >= 10;
+        const isValidAmount = numAmount >= 1;
         const provider = providerAvailability?.recommendedProvider;
         const providerName = provider === "moonpay" ? "MoonPay" : provider === "transak" ? "Transak" : null;
 
@@ -648,15 +703,13 @@ export default function DepositScreen() {
               </View>
             )}
 
-            {/* Provider info */}
-            {providerName && (
-              <View style={styles.providerInfo}>
-                <Shield size={16} color="#4ECDC4" />
-                <Text style={styles.providerInfoText}>
-                  Secure payment via {providerName}
-                </Text>
-              </View>
-            )}
+            {/* Stripe security badge */}
+            <View style={styles.providerInfo}>
+              <Shield size={16} color="#635BFF" />
+              <Text style={styles.providerInfoText}>
+                Secure payment via Stripe
+              </Text>
+            </View>
 
             {/* Region restriction warning */}
             {regionRestriction && (
@@ -671,22 +724,22 @@ export default function DepositScreen() {
                 styles.continueButton,
                 !isValidAmount && styles.continueButtonDisabled,
               ]}
-              onPress={handleFiatRampContinue}
-              disabled={!isValidAmount || isLoading}
+              onPress={() => handleStripeCheckout(numAmount)}
+              disabled={!isValidAmount || isStripeLoading}
             >
               <LinearGradient
-                colors={isValidAmount ? ["#4ECDC4", "#44A08D"] : ["#444", "#333"]}
+                colors={isValidAmount ? ["#635BFF", "#4B44CC"] : ["#444", "#333"]}
                 style={styles.continueButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                {isLoading ? (
+                {isStripeLoading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <>
                     <CreditCard size={20} color="#FFFFFF" />
                     <Text style={styles.continueButtonText}>
-                      {isValidAmount ? `Pay $${numAmount.toFixed(2)}` : "Minimum $10"}
+                      {isValidAmount ? `Pay $${numAmount.toFixed(2)} with Card` : "Minimum $1"}
                     </Text>
                   </>
                 )}
@@ -695,9 +748,9 @@ export default function DepositScreen() {
 
             {/* Payment methods badge */}
             <View style={styles.paymentMethods}>
-              <Text style={styles.paymentMethodsLabel}>Accepts:</Text>
+              <Text style={styles.paymentMethodsLabel}>Powered by Stripe · Accepts:</Text>
               <Text style={styles.paymentMethodsText}>
-                Credit/Debit Card, Apple Pay, Google Pay, Bank Transfer
+                Visa, Mastercard, Apple Pay, Google Pay
               </Text>
             </View>
           </View>
@@ -740,7 +793,7 @@ export default function DepositScreen() {
               >
                 <Text style={styles.referenceCode}>{fiatReferenceCode}</Text>
                 {referenceCopied ? (
-                  <Check size={18} color="#4ECDC4" />
+                  <Check size={18} color="#4CAF82" />
                 ) : (
                   <Copy size={18} color="#FFD700" />
                 )}
@@ -1319,7 +1372,7 @@ const styles = StyleSheet.create({
   },
   providerInfoText: {
     fontSize: 14,
-    color: "#4ECDC4",
+    color: "#4CAF82",
     flex: 1,
   },
 
@@ -1446,7 +1499,7 @@ const styles = StyleSheet.create({
   fiatStepNumberText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4ECDC4",
+    color: "#4CAF82",
   },
   fiatStepText: {
     fontSize: 14,
